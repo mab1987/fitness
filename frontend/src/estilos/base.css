@@ -1,0 +1,86 @@
+/* Base visual do layout Calmo. Todas as cores vêm das variáveis definidas em servicos/tema.js. */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+}
+a { color: var(--accent-ink); }
+h1, h2, h3 { margin: 0; line-height: 1.2; }
+h1 { font-size: 26px; font-weight: 700; }
+h2 { font-size: 18px; font-weight: 700; }
+p { margin: 0; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.cartao {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+}
+.pilha { display: flex; flex-direction: column; gap: 12px; }
+.linha { display: flex; align-items: center; gap: 12px; }
+.mudo { color: var(--muted); font-size: 14px; }
+.rotulo-secao { font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+
+.campo { display: flex; flex-direction: column; gap: 6px; }
+.campo label { font-size: 14px; font-weight: 600; }
+.campo input {
+  height: 48px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.campo input:focus { border-color: var(--accent); }
+.campo .dica { font-size: 13px; color: var(--muted); }
+.campo .erro-campo { font-size: 13px; color: var(--perigo); }
+
+.botao {
+  height: 48px;
+  padding: 0 18px;
+  border-radius: 14px;
+  border: none;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.botao[disabled] { opacity: 0.6; cursor: default; }
+.botao.secundario { background: transparent; color: var(--text); border: 1px solid var(--line); font-weight: 600; }
+.botao.texto { background: transparent; color: var(--accent-ink); padding: 0 8px; }
+.botao.largo { width: 100%; }
+
+.selo {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600;
+  padding: 4px 10px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent-ink);
+}
+
+.segmentado {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px;
+  padding: 4px; border-radius: 14px; background: var(--track);
+}
+.segmentado button {
+  height: 44px; border: none; border-radius: 10px; background: transparent;
+  color: var(--muted); font: inherit; font-weight: 600; cursor: pointer;
+}
+.segmentado button[aria-pressed='true'] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
+
+.tela-auth {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px;
+}
+.tela-auth .cartao { width: 100%; max-width: 420px; padding: 24px; }
+
+.visualmente-oculto {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0;
+}
