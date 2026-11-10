@@ -1,0 +1,5 @@
+node_modules
+frontend/dist
+frontend/dist-teste
+frontend/.env.local
+.DS_Store
