@@ -124,3 +124,38 @@ function publico_(obj, ocultos) {
   });
   return saida;
 }
+
+/**
+ * Grava vários registros de uma vez (cria os novos, atualiza os que já existem pelo id).
+ * Lê a aba uma única vez. Use só dentro de comBloqueio_.
+ * opcoes.podeAlterar(atual): false impede alterar registro de outra pessoa.
+ * opcoes.fixos: campos sempre gravados (por exemplo, o dono do registro).
+ */
+function upsertLoteSemBloqueio_(tabela, registros, opcoes) {
+  opcoes = opcoes || {};
+  if (!registros.length) return { criados: 0, atualizados: 0 };
+  var unicos = {};
+  registros.forEach(function (r) { unicos[r.id] = r; }); // o último com o mesmo id vale
+  var aba = aba_(tabela);
+  var cols = cabecalho_(aba);
+  var porId = {};
+  lerTodos_(tabela, true).forEach(function (o) { porId[o.id] = o; });
+  var t = agora_();
+  var novos = [];
+  var atualizados = 0;
+  Object.keys(unicos).forEach(function (id) {
+    var r = Object.assign({}, unicos[id], opcoes.fixos || {});
+    var atual = porId[id];
+    if (atual) {
+      if (opcoes.podeAlterar && !opcoes.podeAlterar(atual)) throw erro_('PROIBIDO', 'Registro de outra pessoa.');
+      var novo = Object.assign({}, atual, r, { atualizado_em: t });
+      aba.getRange(atual._linha, 1, 1, cols.length).setValues([cols.map(function (c) { return celula_(novo[c]); })]);
+      atualizados++;
+    } else {
+      var reg = Object.assign({ criado_em: t }, r, { atualizado_em: t });
+      novos.push(cols.map(function (c) { return celula_(reg[c]); }));
+    }
+  });
+  if (novos.length) aba.getRange(aba.getLastRow() + 1, 1, novos.length, cols.length).setValues(novos);
+  return { criados: novos.length, atualizados: atualizados };
+}
