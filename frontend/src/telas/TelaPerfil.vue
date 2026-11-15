@@ -6,6 +6,7 @@ import { sessao, definirPerfil, encerrarLocal, planoEfetivo, textoPlano } from '
 import { aparencia, PALETAS, TEMAS, modoEfetivo } from '../servicos/tema.js';
 import { pedidoInstalacao, instalado, instalar, ehIos } from '../servicos/instalar.js';
 import Aviso from '../componentes/Aviso.vue';
+import { treinos, pendentes, enviarFila, limparDoAparelho } from '../servicos/treinos.js';
 
 const router = useRouter();
 const nome = ref(sessao.perfil?.nome || '');
@@ -53,8 +54,14 @@ async function trocarSenha() {
   }
 }
 
-async function sair() {
+const avisoSair = ref(false);
+async function sair(mesmoAssim = false) {
+  if (pendentes.value && !mesmoAssim) {
+    try { await enviarFila(); } catch { /* sem conexão */ }
+    if (pendentes.value) { avisoSair.value = true; return; }
+  }
   try { await api.sair(); } catch { /* sai mesmo sem conexão */ }
+  await limparDoAparelho();
   encerrarLocal();
   router.replace('/entrar');
 }
@@ -127,7 +134,14 @@ async function sair() {
       <button class="botao secundario" type="button" :disabled="!!sessao.verComo" @click="trocarSenha">Trocar senha</button>
     </section>
 
-    <button class="botao secundario largo" type="button" @click="sair">Sair da conta</button>
+    <div v-if="avisoSair" class="cartao pilha" role="alert">
+      <p><strong>{{ pendentes }} treino(s) ainda não foram enviados.</strong> Se sair agora, eles se perdem. Conecte-se à internet e tente de novo.</p>
+      <div class="linha" style="flex-wrap: wrap">
+        <button class="botao" type="button" @click="avisoSair = false">Ficar</button>
+        <button class="botao secundario" type="button" @click="sair(true)">Sair mesmo assim</button>
+      </div>
+    </div>
+    <button class="botao secundario largo" type="button" @click="sair()">Sair da conta</button>
   </div>
 </template>
 

@@ -12,6 +12,10 @@ const rotas = [
     component: () => import('./componentes/LayoutApp.vue'),
     children: [
       { path: '', component: () => import('./telas/TelaInicio.vue') },
+      { path: 'treino', component: () => import('./telas/TelaTreino.vue') },
+      { path: 'fichas', component: () => import('./telas/TelaFichas.vue') },
+      { path: 'fichas/:id', component: () => import('./telas/TelaFicha.vue'), props: true },
+      { path: 'evolucao', component: () => import('./telas/TelaEvolucao.vue') },
       { path: 'perfil', component: () => import('./telas/TelaPerfil.vue') },
       { path: 'painel', component: () => import('./telas/TelaPainel.vue'), meta: { painel: true } },
     ],

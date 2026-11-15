@@ -49,8 +49,9 @@ class Aba {
 }
 
 class Planilha {
-  constructor() { this.abas = [new Aba('Página1')]; }
-  getId() { return 'planilha-teste'; }
+  constructor(id = 'planilha-teste', fuso = 'America/Fortaleza') { this.id = id; this.fuso = fuso; this.abas = [new Aba('Página1')]; }
+  getId() { return this.id; }
+  getSpreadsheetTimeZone() { return this.fuso; }
   getSheetByName(n) { return this.abas.find((a) => a.nome === n) || null; }
   insertSheet(n) { const a = new Aba(n); this.abas.push(a); return a; }
   getSheets() { return this.abas.slice(); }
@@ -59,13 +60,18 @@ class Planilha {
 
 function criarAmbiente() {
   const planilha = new Planilha();
+  const outras = {}; // outras planilhas que o script consegue abrir (ex.: a planilha antiga da importação)
   const props = {};
   const cache = {};
   const emails = [];
   const ctx = {
     console: { log() {}, error: (...a) => ctx._erros.push(a.join(' ')) },
     _erros: [],
-    SpreadsheetApp: { getActiveSpreadsheet: () => planilha, openById: () => planilha },
+    SpreadsheetApp: { getActiveSpreadsheet: () => planilha, openById: (id) => {
+      if (id === planilha.getId()) return planilha;
+      if (outras[id]) return outras[id];
+      throw new Error('Planilha inexistente: ' + id);
+    } },
     PropertiesService: {
       getScriptProperties: () => ({
         getProperty: (k) => (k in props ? props[k] : null),
@@ -86,6 +92,15 @@ function criarAmbiente() {
       Charset: { UTF_8: 'utf8' },
       computeDigest: (alg, txt) => bytesComSinal(crypto.createHash('sha256').update(String(txt), 'utf8').digest()),
       computeHmacSha256Signature: (v, k) => bytesComSinal(crypto.createHmac('sha256', k).update(String(v), 'utf8').digest()),
+      // Só o formato usado pelo backend: yyyy-MM-dd'T'HH:mm:ss
+      formatDate: (data, fuso, formato) => {
+        const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+          timeZone: fuso, year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+        }).formatToParts(data).map((x) => [x.type, x.value]));
+        if (formato !== "yyyy-MM-dd'T'HH:mm:ss") throw new Error('formato não simulado: ' + formato);
+        return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}`;
+      },
       newBlob: (s) => ({ getBytes: () => Array.from(Buffer.from(s, 'utf8')) }),
     },
     ContentService: {
@@ -99,7 +114,15 @@ function criarAmbiente() {
   fs.readdirSync(dir).filter((f) => f.endsWith('.gs')).sort().forEach((f) => {
     vm.runInContext(fs.readFileSync(path.join(dir, f), 'utf8'), ctx, { filename: f });
   });
-  return { ctx, planilha, props, cache, emails };
+  /** Cria outra planilha (abas: { nome: [[cabeçalho...], [linha...]] }) que o script pode abrir pelo id. */
+  function criarOutraPlanilha(id, abas, fuso) {
+    const p = new Planilha(id, fuso);
+    p.abas = [];
+    Object.keys(abas).forEach((n) => { const a = p.insertSheet(n); a.dados = abas[n].map((l) => l.slice()); });
+    outras[id] = p;
+    return p;
+  }
+  return { ctx, planilha, props, cache, emails, criarOutraPlanilha };
 }
 
-module.exports = { criarAmbiente };
+module.exports = { criarAmbiente, Planilha };
