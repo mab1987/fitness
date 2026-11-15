@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../servicos/dados.js';
 import { sessao, ehAdmin } from '../servicos/sessao.js';
-import { data } from '../servicos/calculos.js';
+import { data, gerarCsv, baixarArquivo } from '../servicos/calculos.js';
 import Aviso from '../componentes/Aviso.vue';
 import Convites from '../componentes/Convites.vue';
 
@@ -36,6 +36,11 @@ async function remover(m) {
 }
 async function excluirGrupo() {
   try { await api.excluirGrupo(props.id); router.replace('/painel/grupos'); } catch (e) { erro.value = e.message; }
+}
+function exportar() {
+  const linhas = g.value.membros.map((m) => [m.nome, m.email, m.papel, m.ultimo_treino || '', m.treinos_7d, m.treinos_30d]);
+  baixarArquivo(`grupo-${g.value.grupo.nome.normalize('NFD').replace(/[^A-Za-z0-9]+/g, '-').toLowerCase()}.csv`,
+    gerarCsv(['nome', 'email', 'papel', 'ultimo_treino', 'treinos_7d', 'treinos_30d'], linhas));
 }
 function quando(iso) {
   if (!iso) return '—';
@@ -89,7 +94,10 @@ function quando(iso) {
             </tbody>
           </table>
         </div>
-        <p class="mudo">O gerente vê só nomes e quantidade de treinos. Cargas e séries ficam entre o aluno e o personal dele.</p>
+        <div class="linha" style="justify-content: space-between; flex-wrap: wrap">
+          <p class="mudo">O gerente vê só nomes e quantidade de treinos. Cargas e séries ficam entre o aluno e o personal dele.</p>
+          <button class="botao secundario pequeno" type="button" @click="exportar">Baixar planilha</button>
+        </div>
 
         <Convites :pedido="{ tipo: 'grupo', grupo_id: id }" :papeis="papeisConvite" :ativos="g.convites" titulo="Convidar para o grupo"
           explicacao="Um código pode servir para a turma inteira. Quem entra como personal precisa ter o papel de personal ativo." @mudou="carregar" />

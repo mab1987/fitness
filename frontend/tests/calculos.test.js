@@ -74,3 +74,45 @@ test('links do YouTube', () => {
   assert.equal(idYoutube('https://youtube.com.mal.com/watch?v=dQw4w9WgXcQ'), null);
   assert.equal(idYoutube('javascript:alert(1)'), null);
 });
+
+import { sugestaoCarga, celulaCsv, gerarCsv, treinosPorSemana } from '../src/servicos/calculos.js';
+
+const hist = (vezes) => ({
+  sessoes: vezes.map((_, i) => ({ id: 's' + i, inicio: `2026-11-${String(10 + i).padStart(2, '0')}T10:00:00Z` })),
+  series: vezes.flatMap((ser, i) => ser.map(([carga_kg, reps, rpe], j) => ({ sessao_id: 's' + i, exercicio_id: 'e1', ordem: j + 1, carga_kg, reps, rpe: rpe ?? null }))),
+});
+const it = { exercicio_id: 'e1', series: 3, reps_prescritas: '12' };
+
+test('sugestão básica: bateu a meta sobe; abaixo duas vezes desce; senão mantém', () => {
+  assert.equal(sugestaoCarga(it, hist([[[40, 12], [40, 12], [40, 12]]])).carga, 42.5);
+  assert.match(sugestaoCarga(it, hist([[[40, 12], [40, 12], [40, 12]]])).motivo, /12\/12\/12/);
+  assert.equal(sugestaoCarga(it, hist([[[40, 12], [40, 11], [40, 12]]])), null);
+  assert.equal(sugestaoCarga(it, hist([[[40, 10], [40, 9], [40, 8]], [[40, 11], [40, 10], [40, 9]]])).carga, 37.5);
+  assert.equal(sugestaoCarga({ ...it, sugestao: 'desligada' }, hist([[[40, 12], [40, 12], [40, 12]]])), null);
+  assert.equal(sugestaoCarga({ ...it, incremento_kg: 5 }, hist([[[40, 12], [40, 12], [40, 12]]])).carga, 45);
+  assert.equal(sugestaoCarga({ ...it, carga_prescrita_kg: 40, aumento_max_kg: 1 }, hist([[[40, 12], [40, 12], [40, 12]]])).carga, 41);
+  assert.equal(sugestaoCarga(it, hist([[[null, 12]]])), null);
+});
+
+test('sugestão com esforço (RPE) só no premium', () => {
+  const h = hist([[[40, 12, 7], [40, 12, 7], [40, 12, 7]]]);
+  assert.equal(sugestaoCarga(it, h, { premium: true }).carga, 45);
+  assert.equal(sugestaoCarga(it, h, { premium: false }).carga, 42.5);
+  assert.equal(sugestaoCarga(it, hist([[[40, 12, 9], [40, 12, 9]]]), { premium: true }), null);
+  assert.equal(sugestaoCarga(it, hist([[[40, 8, 10], [40, 8, 10]]]), { premium: true }).carga, 37.5);
+});
+
+test('CSV seguro e no formato brasileiro', () => {
+  assert.equal(celulaCsv('=HYPERLINK("x")'), '"\'=HYPERLINK(""x"")"');
+  assert.equal(celulaCsv('+1'), "'+1");
+  assert.equal(celulaCsv(42.5), '42,5');
+  assert.equal(celulaCsv(-3), '-3');
+  assert.equal(celulaCsv('a;b'), '"a;b"');
+  assert.equal(gerarCsv(['a', 'b'], [[1, 'x']]), '﻿a;b\r\n1;x');
+});
+
+test('treinos por semana', () => {
+  const l = treinosPorSemana([{ inicio: new Date().toISOString() }, { inicio: new Date().toISOString() }], 4);
+  assert.equal(l.length, 4);
+  assert.equal(l[3].treinos, 2);
+});

@@ -17,6 +17,7 @@ export const treinos = reactive({
   fila: [], // lotes esperando envio
   comentarios: [], // conversas com o personal sobre os treinos
   personal: null, // { vinculo_id, nome, ... } do personal do aluno
+  config: { incremento_padrao_kg: 2.5 },
   enviando: false,
   online: typeof navigator === 'undefined' ? true : navigator.onLine,
   erro: '',
@@ -37,7 +38,7 @@ export function carregarTreinos(forcar = false) {
       const [ex, fi, hi, at, fila, com] = await Promise.all(['exercicios', 'fichas', 'historico', 'atual', 'fila', 'comentarios'].map((n) => ler(chave(n))));
       if (com) treinos.comentarios = com;
       if (ex) treinos.exercicios = ex;
-      if (fi) { treinos.fichas = fi.fichas; treinos.limites = fi.limites; }
+      if (fi) { treinos.fichas = fi.fichas; treinos.limites = fi.limites; if (fi.config) treinos.config = fi.config; }
       if (hi) { treinos.historico = hi.dados; treinos.historicoEm = hi.em; }
       if (!sessao.verComo) { treinos.atual = at || null; treinos.fila = fila || []; }
       treinos.carregado = true;
@@ -55,6 +56,7 @@ export async function atualizarDoServidor() {
     treinos.exercicios = ex;
     treinos.fichas = fi.fichas;
     treinos.limites = fi.limites;
+    if (fi.config) treinos.config = fi.config;
     await atualizarHistorico();
     const [com, vin] = await Promise.all([api.listarComentarios(), api.meuVinculo()]);
     treinos.comentarios = com;
@@ -173,7 +175,7 @@ export async function finalizarTreino(observacao = '') {
   t.exercicios.forEach((ex, i) => {
     ex.series.forEach((s, j) => {
       if (!s.feita) return;
-      series.push({ id: s.id, sessao_id: t.id, exercicio_id: ex.exercicio_id, ordem: (i + 1) * 100 + j + 1, tipo: 'normal', reps: s.reps ?? null, carga_kg: s.carga ?? null });
+      series.push({ id: s.id, sessao_id: t.id, exercicio_id: ex.exercicio_id, ordem: (i + 1) * 100 + j + 1, tipo: 'normal', reps: s.reps ?? null, carga_kg: s.carga ?? null, rpe: ex.rpe ?? null });
     });
   });
   const ajustes = t.exercicios
@@ -198,7 +200,7 @@ export async function finalizarTreino(observacao = '') {
     gravar(chave('fila'), treinos.fila),
     gravar(chave('atual'), null),
     gravar(chave('historico'), { dados: treinos.historico, em: treinos.historicoEm }),
-    gravar(chave('fichas'), { fichas: treinos.fichas, limites: treinos.limites }),
+    gravar(chave('fichas'), { fichas: treinos.fichas, limites: treinos.limites, config: treinos.config }),
   ]);
   enviarFila().catch(() => {});
   return { series: series.length, ajustes: ajustes.length };

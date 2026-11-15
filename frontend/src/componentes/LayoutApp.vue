@@ -64,7 +64,7 @@ function sairDoVerComo() {
             {{ pendentes }} a enviar
           </span>
           <span v-else-if="!treinos.online" class="selo neutro" role="status">Sem internet</span>
-          <span class="selo">{{ textoPlano(planoEfetivo) }}</span>
+          <RouterLink class="selo" to="/premium">{{ textoPlano(planoEfetivo) }}</RouterLink>
         </span>
       </header>
       <main id="conteudo" class="conteudo">
@@ -105,6 +105,7 @@ function sairDoVerComo() {
 }
 .item-inferior.ativo { color: var(--accent-ink); font-weight: 600; }
 .selo.neutro { background: var(--track); color: var(--text); }
+a.selo { text-decoration: none; }
 
 @media (min-width: 900px) {
   .lateral {

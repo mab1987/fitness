@@ -3,10 +3,28 @@ import { ref, computed, watch } from 'vue';
 import { treinos, exercicioPorId, comentar, marcarComentariosVistos } from '../servicos/treinos.js';
 import { sessao } from '../servicos/sessao.js';
 import Comentarios from '../componentes/Comentarios.vue';
-import { pontosExercicio, recordes, kg, data, hora } from '../servicos/calculos.js';
+import { pontosExercicio, recordes, kg, data, hora, treinosPorSemana, volumePorGrupo, dataCurta } from '../servicos/calculos.js';
+import PainelMedidas from '../componentes/PainelMedidas.vue';
+import BotoesExportar from '../componentes/BotoesExportar.vue';
 import GraficoLinha from '../componentes/GraficoLinha.vue';
 
 const premium = computed(() => treinos.limites.plano === 'premium');
+const semanas = computed(() => treinosPorSemana(treinos.historico.sessoes, premium.value ? 12 : 4));
+const maxSemana = computed(() => Math.max(1, ...semanas.value.map((s) => s.treinos)));
+const volume = computed(() => {
+  if (!premium.value) return [];
+  const agora = Date.now();
+  const iso = (dias) => new Date(agora - dias * 864e5).toISOString();
+  const atual = volumePorGrupo(treinos.historico, exercicioPorId.value, iso(30), iso(-1));
+  const antes = volumePorGrupo(treinos.historico, exercicioPorId.value, iso(60), iso(30));
+  const grupos = [...new Set([...atual.keys(), ...antes.keys()])];
+  return grupos.map((g) => {
+    const a = atual.get(g) || 0;
+    const b = antes.get(g) || 0;
+    return { grupo: g, atual: a, antes: b, variacao: b ? Math.round(((a - b) / b) * 100) : null };
+  }).sort((x, y) => y.atual - x.atual);
+});
+const toneladas = (v) => (v >= 1000 ? kg(Math.round(v / 100) / 10) + ' t' : kg(Math.round(v)) + ' kg');
 const exercicioId = ref('');
 const medida = ref('carga');
 const periodo = ref(90);
@@ -109,6 +127,39 @@ const novosDe = (id) => comentariosDe(id).filter((c) => !c.visto && c.autor_id !
       </template>
     </section>
 
+    <section class="cartao pilha" aria-labelledby="t-freq">
+      <h2 id="t-freq">Treinos por semana</h2>
+      <div class="barras" role="img" :aria-label="'Treinos por semana: ' + semanas.map((s) => s.treinos).join(', ')">
+        <div v-for="s in semanas" :key="s.inicio" class="barra">
+          <span class="num">{{ s.treinos }}</span>
+          <span class="coluna" :style="{ height: (s.treinos / maxSemana) * 80 + 'px' }"></span>
+          <span class="mudo dia">{{ dataCurta(s.inicio) }}</span>
+        </div>
+      </div>
+      <p v-if="!premium" class="mudo">No premium: as últimas 12 semanas e o volume por grupo muscular.</p>
+    </section>
+
+    <section v-if="premium && volume.length" class="cartao pilha" aria-labelledby="t-vol">
+      <h2 id="t-vol">Volume por grupo muscular</h2>
+      <p class="mudo">Carga × repetições somadas: últimos 30 dias comparados aos 30 anteriores.</p>
+      <div class="rolagem">
+        <table>
+          <thead><tr><th>Grupo</th><th>Últimos 30 dias</th><th>30 dias antes</th><th>Variação</th></tr></thead>
+          <tbody>
+            <tr v-for="v in volume" :key="v.grupo">
+              <td>{{ v.grupo }}</td><td>{{ toneladas(v.atual) }}</td><td>{{ toneladas(v.antes) }}</td>
+              <td>{{ v.variacao == null ? '—' : (v.variacao > 0 ? '+' : '') + v.variacao + '%' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="pilha" aria-labelledby="t-med">
+      <h2 id="t-med" class="rotulo-secao">Medidas corporais</h2>
+      <PainelMedidas :premium="premium" />
+    </section>
+
     <section v-if="listaRecordes.length" class="pilha" aria-labelledby="t-rec">
       <h2 id="t-rec" class="rotulo-secao">Recordes de carga</h2>
       <div class="grade-recordes">
@@ -140,6 +191,12 @@ const novosDe = (id) => comentariosDe(id).filter((c) => !c.visto && c.autor_id !
       </div>
       <button v-if="sessoes.length > mostrar" class="botao secundario" type="button" @click="mostrar += 30">Mostrar mais</button>
     </section>
+
+    <section class="cartao pilha" aria-labelledby="t-exp">
+      <h2 id="t-exp">Exportar</h2>
+      <BotoesExportar v-if="premium" />
+      <p v-else class="mudo">Exportar para planilha é do <RouterLink to="/premium">premium</RouterLink>. Se precisar de uma cópia dos seus dados, peça ao administrador.</p>
+    </section>
   </div>
 </template>
 
@@ -148,6 +205,15 @@ const novosDe = (id) => comentariosDe(id).filter((c) => !c.visto && c.autor_id !
 .cresce { flex: 1; min-width: 200px; }
 .rotulo { font-size: 14px; font-weight: 600; }
 .segmentado.dois { grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 160px; }
+.barras { display: flex; align-items: flex-end; gap: 6px; height: 130px; }
+.barra { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0; }
+.coluna { width: 100%; max-width: 36px; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 2px; }
+.num { font-size: 12px; font-weight: 600; }
+.dia { font-size: 11px; white-space: nowrap; }
+.rolagem { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); }
+th { color: var(--muted); font-weight: 600; }
 .grade-recordes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .recorde { display: flex; flex-direction: column; gap: 2px; padding: 12px; }
 .recorde strong { font-size: 18px; }

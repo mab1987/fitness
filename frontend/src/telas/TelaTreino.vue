@@ -2,7 +2,8 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { treinos, carregarTreinos, guardarAtual, finalizarTreino, descartarTreino, exercicioPorId } from '../servicos/treinos.js';
-import { kg, lerNumero, duracao, sugestaoProgresso, ultimaVez, novoId, data } from '../servicos/calculos.js';
+import { kg, lerNumero, duracao, sugestaoProgresso, ultimaVez, novoId, data, sugestaoCarga } from '../servicos/calculos.js';
+import { planoEfetivo } from '../servicos/sessao.js';
 import VideoYoutube from '../componentes/VideoYoutube.vue';
 import Aviso from '../componentes/Aviso.vue';
 
@@ -43,13 +44,45 @@ function ultimaTexto(ex) {
   return 'última: ' + u.series.map((s) => kg(s.carga_kg)).join(' · ') + ' kg';
 }
 
+const premium = computed(() => planoEfetivo.value?.tipo === 'premium');
+function sugestao(ex) {
+  if (ex.concluido || ex.series.some((s) => s.feita)) return null;
+  const sug = sugestaoCarga(item(ex), treinos.historico, { premium: premium.value, incrementoPadrao: treinos.config?.incremento_padrao_kg || 2.5 });
+  if (!sug || ex.series.every((s) => s.carga === sug.carga)) return null;
+  return sug;
+}
+function usarSugestao(ex, sug) {
+  ex.series.forEach((s) => { if (!s.feita) { s.carga = sug.carga; textos(s); } });
+  guardarAtual();
+}
+function definirEsforco(ex, rpe) {
+  ex.rpe = ex.rpe === rpe ? null : rpe;
+  guardarAtual();
+}
+
+// O texto digitado fica em cargaTxt/repsTxt: assim o relógio da tela (que redesenha a cada 0,25 s)
+// não apaga o que a pessoa está digitando. O número vai para carga/reps quando o campo perde o foco.
+function textos(s) {
+  s.cargaTxt = s.carga == null ? '' : kg(s.carga);
+  s.repsTxt = s.reps == null ? '' : String(s.reps);
+}
+function prepararTextos() {
+  t.value?.exercicios.forEach((ex) => ex.series.forEach((s) => {
+    if (s.cargaTxt === undefined) s.cargaTxt = s.carga == null ? '' : kg(s.carga);
+    if (s.repsTxt === undefined) s.repsTxt = s.reps == null ? '' : String(s.reps);
+  }));
+}
+prepararTextos(); // antes de desenhar a tela: os campos já nascem com o texto certo
 function alterar(s, campo, valor) {
   const n = lerNumero(valor);
   s[campo] = n === null ? null : campo === 'reps' ? Math.round(n) : n;
+  textos(s);
   guardarAtual();
 }
 
 function marcar(ex, s, idx) {
+  if (s.cargaTxt !== undefined) { const c = lerNumero(s.cargaTxt); s.carga = c; }
+  if (s.repsTxt !== undefined) { const r = lerNumero(s.repsTxt); s.reps = r == null ? null : Math.round(r); }
   s.feita = !s.feita;
   if (s.feita) {
     const i = item(ex);
@@ -67,7 +100,8 @@ function concluir(ex) {
   ex.concluido = true;
   const sug = sugestaoProgresso(item(ex), ex.series);
   ex.ajuste = sug ? { ...sug, aceito: null } : null;
-  if (!sug) avancar();
+  // No premium o card fica aberto para anotar o esforço; avança ao tocar em "Próximo exercício".
+  if (!sug && !premium.value) avancar();
 }
 
 function responderAjuste(ex, aceito) {
@@ -83,7 +117,9 @@ function avancar() {
 
 function adicionarSerie(ex) {
   const ultima = ex.series[ex.series.length - 1] || {};
-  ex.series.push({ id: novoId(), carga: ultima.carga ?? null, reps: ultima.reps ?? null, antes: null, feita: false });
+  const nova = { id: novoId(), carga: ultima.carga ?? null, reps: ultima.reps ?? null, antes: null, feita: false };
+  textos(nova);
+  ex.series.push(nova);
   ex.concluido = false;
   guardarAtual();
 }
@@ -111,6 +147,10 @@ watch(restante, (r) => {
 
 async function terminar() {
   erro.value = '';
+  t.value.exercicios.forEach((ex) => ex.series.forEach((x) => {
+    if (x.feita && x.cargaTxt !== undefined) x.carga = lerNumero(x.cargaTxt);
+    if (x.feita && x.repsTxt !== undefined) { const r = lerNumero(x.repsTxt); x.reps = r == null ? null : Math.round(r); }
+  }));
   try {
     const nome = t.value.nome;
     const r = await finalizarTreino(observacao.value);
@@ -137,6 +177,7 @@ onMounted(async () => {
   document.addEventListener('visibilitychange', aoVoltarParaTela);
   await carregarTreinos();
   if (!t.value && !finalizado.value) { router.replace('/'); return; }
+  prepararTextos();
   avancar();
   manterTelaAcesa();
 });
@@ -191,13 +232,18 @@ onBeforeUnmount(() => {
             <VideoYoutube :url="exercicio(ex).video_url" :titulo="'Vídeo: ' + exercicio(ex).nome" />
           </div>
 
+          <div v-if="sugestao(ex)" class="sugestao" role="note">
+            <span class="cresce"><strong>Sugestão: {{ kg(sugestao(ex).carga) }} kg</strong> · {{ sugestao(ex).motivo }}</span>
+            <button class="botao pequeno" type="button" @click="usarSugestao(ex, sugestao(ex))">Usar</button>
+          </div>
+
           <div v-for="(s, j) in ex.series" :key="s.id" class="serie" :class="{ feita: s.feita }">
             <span class="n"><span class="mudo">Série {{ j + 1 }}</span><span v-if="s.antes" class="antes mudo">ant. {{ kg(s.antes.carga) }}</span></span>
             <label class="visualmente-oculto" :for="'c-' + s.id">Carga da série {{ j + 1 }} em kg</label>
-            <input :id="'c-' + s.id" class="num" inputmode="decimal" autocomplete="off" maxlength="7" :value="s.carga == null ? '' : kg(s.carga)" placeholder="kg" @change="alterar(s, 'carga', $event.target.value)" />
+            <input :id="'c-' + s.id" class="num" inputmode="decimal" autocomplete="off" maxlength="7" v-model="s.cargaTxt" placeholder="kg" @change="alterar(s, 'carga', s.cargaTxt)" />
             <span class="mudo" aria-hidden="true">×</span>
             <label class="visualmente-oculto" :for="'r-' + s.id">Repetições da série {{ j + 1 }}</label>
-            <input :id="'r-' + s.id" class="num curto" inputmode="numeric" autocomplete="off" maxlength="3" :value="s.reps ?? ''" placeholder="reps" @change="alterar(s, 'reps', $event.target.value)" />
+            <input :id="'r-' + s.id" class="num curto" inputmode="numeric" autocomplete="off" maxlength="3" v-model="s.repsTxt" placeholder="reps" @change="alterar(s, 'reps', s.repsTxt)" />
             <button class="check" type="button" :aria-pressed="s.feita" :aria-label="(s.feita ? 'Desmarcar' : 'Marcar') + ' série ' + (j + 1)" @click="marcar(ex, s, j)">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg>
             </button>
@@ -205,6 +251,14 @@ onBeforeUnmount(() => {
           <div class="linha" style="flex-wrap: wrap">
             <button class="botao texto pequeno" type="button" @click="adicionarSerie(ex)">+ Série</button>
             <button v-if="ex.series.length > 1 && !ex.series[ex.series.length - 1].feita" class="botao texto pequeno" type="button" @click="removerSerie(ex, ex.series.length - 1)">− Série</button>
+          </div>
+
+          <button v-if="premium && ex.concluido && !(ex.ajuste && ex.ajuste.aceito === null) && t.exercicios.some((e) => !e.concluido)" class="botao secundario pequeno" type="button" style="align-self: flex-start" @click="avancar">Próximo exercício →</button>
+
+          <div v-if="premium && ex.series.some((s) => s.feita)" class="esforco" role="group" :aria-label="'Esforço em ' + exercicio(ex).nome">
+            <span class="mudo">Esforço (RPE):</span>
+            <button v-for="r in [6, 7, 8, 9, 10]" :key="r" type="button" class="chip" :aria-pressed="ex.rpe === r" @click="definirEsforco(ex, r)">{{ r }}</button>
+            <span class="mudo dica-rpe">10 = não sairia mais nenhuma</span>
           </div>
 
           <div v-if="ex.ajuste && ex.ajuste.aceito === null" class="ajuste pilha" role="group" aria-label="Atualizar a ficha">
@@ -277,6 +331,11 @@ onBeforeUnmount(() => {
 }
 .check[aria-pressed='true'] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .ajuste { padding: 12px; border-radius: 12px; background: var(--track); }
+.sugestao { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; border: 1px dashed var(--accent); font-size: 14px; }
+.esforco { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 14px; }
+.chip { min-width: 40px; height: 36px; border-radius: 18px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+.chip[aria-pressed='true'] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.dica-rpe { font-size: 12px; }
 .resumo-ex { display: flex; align-items: center; gap: 12px; text-align: left; font: inherit; color: var(--text); cursor: pointer; width: 100%; }
 .texto-ex { display: flex; flex-direction: column; gap: 2px; }
 .bolinha { width: 28px; height: 28px; flex-shrink: 0; border-radius: 14px; border: 2px solid var(--line); display: flex; align-items: center; justify-content: center; }

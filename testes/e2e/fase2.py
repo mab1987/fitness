@@ -100,11 +100,16 @@ with sync_playwright() as pw:
     foto(N, '05-aluna-ficha-prescrita')
     ir(N, 'Treino')
     N.get_by_role('button', name='Começar Treino A').click()
+    N.locator('section.atual').wait_for()
     N.locator('input[id^="c-"]').first.fill('42,5'); N.locator('input[id^="c-"]').first.press('Tab')
+    expect(N.locator('input[id^="c-"]').first).to_have_value('42,5')
     checks = N.locator('section.atual button.check')
     for i in range(checks.count()):
         checks.nth(i).click()
-    N.get_by_role('button', name='Sim, atualizar').click()
+    try:
+        N.get_by_role('button', name='Sim, atualizar').click(timeout=8000)
+    except Exception:
+        foto(N, 'falha'); raise
     N.get_by_role('button', name=re.compile('Tá pago! Terminar')).click()
     expect(N.get_by_role('heading', name='Tá pago!')).to_be_visible()
 

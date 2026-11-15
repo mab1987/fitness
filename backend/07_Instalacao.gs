@@ -21,6 +21,13 @@ function setup() {
     aba.setFrozenRows(1);
   });
 
+  // Tabela de preços inicial, só se estiver vazia.
+  if (!lerTodos_('precos', true).length) {
+    APP.PRECOS_INICIAIS.forEach(function (p) {
+      inserirSemBloqueio_('precos', { id: 'preco_' + p[0] + '_' + p[1], publico: p[0], periodo: p[1], valor: p[2], ativo: true });
+    });
+  }
+
   ss.getSheets().forEach(function (aba) {
     var nome = aba.getName();
     if (!ESQUEMA[nome] && aba.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(aba);

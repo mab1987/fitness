@@ -10,14 +10,18 @@ import Aviso from '../componentes/Aviso.vue';
 const router = useRouter();
 const erro = ref('');
 const primeiroNome = computed(() => (sessao.perfil?.nome || '').split(' ')[0]);
-const ativas = computed(() => treinos.fichas.filter((f) => f.ativa).sort((a, b) => (a.ordem || 0) - (b.ordem || 0)));
-const proxima = computed(() => proximaFicha(treinos.fichas, treinos.historico));
+const ativas = computed(() => treinos.fichas.filter((f) => f.ativa && !f.bloqueada).sort((a, b) => (a.ordem || 0) - (b.ordem || 0)));
+const proxima = computed(() => proximaFicha(treinos.fichas.filter((f) => !f.bloqueada), treinos.historico));
 const ultimaSessao = computed(() => [...treinos.historico.sessoes].sort((a, b) => (a.inicio < b.inicio ? 1 : -1))[0]);
 const nomeFicha = (id) => treinos.fichas.find((f) => f.id === id)?.nome || 'Treino livre';
 const resumoFicha = (f) => {
   const grupos = [...new Set(f.itens.map((i) => exercicioPorId.value.get(i.exercicio_id)?.grupo_muscular).filter(Boolean))];
   return `${f.itens.length} ${f.itens.length === 1 ? 'exercício' : 'exercícios'}${grupos.length ? ' · ' + grupos.slice(0, 3).join(', ') : ''}`;
 };
+const acabando = computed(() => {
+  const p = planoEfetivo.value;
+  return p && p.tipo === 'premium' && p.fim && p.dias_restantes != null && p.dias_restantes <= 7;
+});
 const treinosNoMes = computed(() => {
   const desde = new Date(Date.now() - 30 * 864e5).toISOString();
   return treinos.historico.sessoes.filter((s) => s.inicio >= desde).length;
@@ -43,6 +47,10 @@ async function comecar(f) {
     </div>
     <Aviso :texto="erro || treinos.erro" />
 
+    <RouterLink v-if="acabando" class="cartao linha aviso-com" to="/premium">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+      <span><strong>Seu premium acaba em {{ planoEfetivo.dias_restantes }} dia(s).</strong> Renove para não voltar ao plano grátis.</span>
+    </RouterLink>
     <RouterLink v-if="comentariosNovos" class="cartao linha aviso-com" to="/evolucao">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" /></svg>
       <span><strong>{{ comentariosNovos }} comentário(s) novo(s)</strong> sobre seus treinos. Veja em Evolução.</span>

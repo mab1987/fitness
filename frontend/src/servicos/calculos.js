@@ -148,3 +148,125 @@ export function duracao(seg) {
   const s = Math.max(0, Math.round(seg));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
+
+// ---------- sugestão de carga (Fase 3) ----------
+
+function arredondar(n, passo = 0.25) {
+  return Math.round(n / passo) * passo;
+}
+
+/**
+ * Sugere a carga do próximo treino de um exercício da ficha.
+ * Regra básica (todos): bateu a meta de repetições em todas as séries da última vez → sobe um incremento;
+ *   ficou abaixo da meta nas duas últimas vezes → desce um incremento; senão, mantém (sem sugestão).
+ * Regra com esforço (premium, quando a última vez tem RPE anotado): RPE até 7 → sobe 2 incrementos;
+ *   8 → sobe 1; 9 → mantém; 10 → desce 1.
+ * O personal pode desligar no item da ficha ("sugestao: 'desligada'") e limitar com aumento_max_kg.
+ * Devolve { carga, motivo, regra } ou null.
+ */
+export function sugestaoCarga(item, historico, { premium = false, incrementoPadrao = 2.5 } = {}) {
+  if (!item || item.sugestao === 'desligada') return null;
+  const inc = item.incremento_kg || incrementoPadrao;
+  const sessoes = [...historico.sessoes].sort((a, b) => (a.inicio < b.inicio ? 1 : -1));
+  const vezes = [];
+  for (const s of sessoes) {
+    const ser = historico.series.filter((x) => x.sessao_id === s.id && x.exercicio_id === item.exercicio_id).sort((a, b) => a.ordem - b.ordem);
+    if (ser.length) vezes.push(ser);
+    if (vezes.length === 2) break;
+  }
+  if (!vezes.length) return null;
+  const ultima = vezes[0];
+  const comCarga = ultima.filter((s) => s.carga_kg != null && s.carga_kg > 0);
+  if (!comCarga.length) return null;
+  const base = Math.max(...comCarga.map((s) => s.carga_kg));
+  const metas = repsPorSerie(item.reps_atuais || item.reps_prescritas, Math.max(item.series || 1, ultima.length));
+  const bateu = (ser) => ser.length > 0 && ser.every((s, i) => s.reps != null && metas[i] != null && s.reps >= metas[i]);
+  const abaixo = (ser) => ser.some((s, i) => s.reps != null && metas[i] != null && s.reps < metas[i]);
+  const limite = item.aumento_max_kg != null && item.carga_prescrita_kg != null ? item.carga_prescrita_kg + item.aumento_max_kg : null;
+  const limitar = (c) => (limite != null ? Math.min(c, limite) : c);
+  const resumo = ultima.map((s) => (s.reps ?? '–')).join('/');
+
+  const rpes = ultima.map((s) => s.rpe).filter((r) => r != null);
+  if (premium && rpes.length) {
+    const rpe = Math.round(rpes.reduce((a, b) => a + b, 0) / rpes.length);
+    const passos = rpe <= 7 ? 2 : rpe === 8 ? 1 : rpe === 9 ? 0 : -1;
+    if (passos === 0) return null;
+    const carga = limitar(Math.max(0, arredondar(base + passos * inc)));
+    if (carga === base) return null;
+    return { carga, regra: 'esforco', motivo: `esforço ${rpe} de 10 na última vez (${kg(base)} kg)` };
+  }
+  if (bateu(ultima)) {
+    const carga = limitar(arredondar(base + inc));
+    if (carga <= base) return null;
+    return { carga, regra: 'basica', motivo: `você fez ${resumo} com ${kg(base)} kg e bateu a meta` };
+  }
+  if (vezes.length === 2 && abaixo(vezes[0]) && abaixo(vezes[1])) {
+    const carga = Math.max(0, arredondar(base - inc));
+    return { carga, regra: 'basica', motivo: 'ficou abaixo da meta de repetições nas duas últimas vezes' };
+  }
+  return null;
+}
+
+// ---------- planilhas (CSV) ----------
+
+/** Célula segura: texto que começa com = + - @ vira texto puro (não roda como fórmula no Excel/Sheets). */
+export function celulaCsv(v) {
+  if (v === null || v === undefined) return '';
+  let t = typeof v === 'number' ? String(v).replace('.', ',') : String(v);
+  if (typeof v !== 'number' && /^[=+\-@\t\r]/.test(t)) t = "'" + t;
+  if (/[";\n\r]/.test(t)) t = '"' + t.replace(/"/g, '""') + '"';
+  return t;
+}
+
+/** CSV no formato do Excel brasileiro (separador ;, vírgula decimal, UTF-8 com BOM). */
+export function gerarCsv(colunas, linhas) {
+  return '﻿' + [colunas, ...linhas].map((l) => l.map(celulaCsv).join(';')).join('\r\n');
+}
+
+export function baixarArquivo(nome, conteudo, tipo = 'text/csv;charset=utf-8') {
+  const url = URL.createObjectURL(new Blob([conteudo], { type: tipo }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nome;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** Treinos por semana (segunda a domingo), das mais antigas para as mais recentes. */
+export function treinosPorSemana(sessoes, semanas) {
+  const inicioSemana = (d) => {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+    return x;
+  };
+  const atual = inicioSemana(new Date());
+  const lista = Array.from({ length: semanas }, (_, i) => {
+    const ini = new Date(atual);
+    ini.setDate(ini.getDate() - 7 * (semanas - 1 - i));
+    return { inicio: ini.toISOString(), treinos: 0 };
+  });
+  const primeira = new Date(lista[0].inicio).getTime();
+  for (const s of sessoes) {
+    const t = inicioSemana(s.inicio).getTime();
+    if (t < primeira) continue;
+    const i = Math.round((t - primeira) / (7 * 864e5));
+    if (lista[i]) lista[i].treinos++;
+  }
+  return lista;
+}
+
+/** Volume (carga × repetições) por grupo muscular entre duas datas. */
+export function volumePorGrupo(historico, exercicioPorId, desdeIso, ateIso) {
+  const sessoes = new Map(historico.sessoes.map((s) => [s.id, s]));
+  const v = new Map();
+  for (const s of historico.series) {
+    const se = sessoes.get(s.sessao_id);
+    if (!se || se.inicio < desdeIso || se.inicio >= ateIso || s.carga_kg == null || !s.reps) continue;
+    const g = exercicioPorId.get(s.exercicio_id)?.grupo_muscular || 'Outros';
+    v.set(g, (v.get(g) || 0) + s.carga_kg * s.reps);
+  }
+  return v;
+}

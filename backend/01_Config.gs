@@ -10,7 +10,7 @@
  */
 var APP = {
   NOME: 'Meu treino',
-  VERSAO: '0.3.0',
+  VERSAO: '0.4.0',
   SESSAO_DIAS: 30,
   RECUPERACAO_MINUTOS: 60,
   MAX_TENTATIVAS_LOGIN: 5,
@@ -25,7 +25,15 @@ var APP = {
   MAX_LOTE_SESSOES: 200,
   MAX_LOTE_SERIES: 3000,
   CONVITE_DIAS: 7,
-  PAPEIS_GRUPO: ['membro', 'personal', 'gerente']
+  PAPEIS_GRUPO: ['membro', 'personal', 'gerente'],
+  PERIODOS: { mensal: 1, trimestral: 3, semestral: 6, anual: 12 },
+  // Preços iniciais (opção simbólica do plano do projeto). O administrador muda no app.
+  PRECOS_INICIAIS: [
+    ['aluno', 'mensal', 4.9], ['aluno', 'trimestral', 12.9], ['aluno', 'semestral', 22.9], ['aluno', 'anual', 39.9],
+    ['personal', 'mensal', 3.4], ['personal', 'trimestral', 8.9], ['personal', 'semestral', 15.9], ['personal', 'anual', 27.9]
+  ],
+  MAX_PEDIDOS_ABERTOS: 3,
+  INCREMENTO_PADRAO_KG: 2.5
 };
 
 function prop_(nome, obrigatoria) {

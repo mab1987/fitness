@@ -1,6 +1,8 @@
 # Meu treino — como colocar no ar
 
-> **Já está na Fase 1?** Vá direto para a [Parte 7 — Atualizar para a Fase 2](#parte-7--atualizar-para-a-fase-2).
+> **Já está na Fase 2?** Vá direto para a [Parte 9 — Atualizar para a Fase 3](#parte-9--atualizar-para-a-fase-3).
+>
+> **Já está na Fase 1?** Vá para a [Parte 7 — Atualizar para a Fase 2](#parte-7--atualizar-para-a-fase-2).
 >
 > **Já instalou a Fase 0?** Vá para a [Parte 4 — Atualizar para a Fase 1](#parte-4--atualizar-para-a-fase-1) e depois para a [Parte 5 — Importar a planilha antiga](#parte-5--importar-a-planilha-antiga).
 
@@ -17,7 +19,7 @@ São três partes: a planilha com o servidor (Apps Script), o site (GitHub Pages
 5. Volte ao editor, abra o arquivo `appsscript.json` e substitua o conteúdo pelo de `backend/appsscript.json`. Salve.
 6. No topo do editor, escolha a função **setup** e clique em **Executar**.
    - O Google vai pedir autorização. Escolha sua conta. Se aparecer "O Google não verificou este app", clique em **Avançado > Acessar Meu treino – servidor (não seguro)**: o aviso aparece porque o script é seu e não passou pela verificação do Google.
-   - No registro de execução deve aparecer **"Pronto: 21 abas conferidas"** (19 nas versões anteriores à Fase 2). A planilha agora tem as abas do modelo de dados.
+   - No registro de execução deve aparecer **"Pronto: 24 abas conferidas"** (21 na Fase 2, 19 antes dela). A planilha agora tem as abas do modelo de dados.
 7. Rode também a função **testarSenha**. O registro mostra quanto tempo o servidor leva para proteger uma senha. Até uns 3 segundos está ok.
 8. Em **Configurações do projeto > Propriedades do script**, clique em **Adicionar propriedade** e crie:
    - `ADMIN_EMAIL` = o e-mail com que você vai se cadastrar no app (essa conta vira administradora);
@@ -113,6 +115,26 @@ Use duas contas além da sua (por exemplo, um amigo personal e um aluno, ou cont
 4. **Ajuste e comentário:** o aluno faz o treino, sobe uma carga e aceita "Usar essa carga no próximo treino?". O personal vê **1 ajuste** na lista de alunos e, na aba **Treinos**, comenta. O aluno vê o aviso de comentário no Início e responde em **Evolução**.
 5. **Grupo:** em **Painel › Grupos**, crie um grupo (com ou sem gerente), gere um convite e use o código em **Perfil** de outra conta. A tabela do grupo mostra a pessoa e quantos treinos ela fez.
 6. **Catálogo:** o personal propõe um exercício seu em **Painel › Meus exercícios**. Você aceita em **Painel › Catálogo de exercícios** e ele passa a aparecer para todos.
+
+## Parte 9 — Atualizar para a Fase 3
+
+1. **Servidor.** Troque todo o `Código.gs` pelo novo `backend/dist/Codigo.gs`, salve e rode **setup**. Ela cria as abas `programas`, `programa_fichas` e `programa_itens`, acrescenta colunas novas e preenche a tabela de preços com a opção simbólica (só se estiver vazia). Deve aparecer **"Pronto: 24 abas conferidas"**.
+2. **Implantar › Gerenciar implantações** › lápis › **Nova versão** › Descrição `Fase 3` › **Implantar**. A URL `/exec` deve mostrar `"versao":"0.4.0"`.
+3. **Site.** Junte o pull request da Fase 3. O app se atualiza sozinho nos aparelhos.
+4. **Chave Pix.** No app: **Painel › Premium e vendas › Dados do Pix**. Preencha a chave, o nome do recebedor e a cidade e salve. Sem a chave, a tela de compra avisa que ainda não está disponível.
+5. **Preços.** Na mesma tela ficam os preços (opção simbólica: mensal R$ 4,90, trimestral R$ 12,90, semestral R$ 22,90, anual R$ 39,90; licença do personal cerca de 30% menos). Mude à vontade: pedidos já feitos mantêm o valor da compra.
+
+**Antes de vender:** faça um pedido de teste com a sua conta, pague R$ 4,90 a você mesmo pelo app do banco e confira se o valor e o nome aparecem certos. Depois libere o pedido e veja se o premium começa.
+
+## Parte 10 — Teste de passagem da Fase 3
+
+1. **Compra:** com uma conta de aluno, toque no selo do plano (no topo) › **Comprar** › pague com o Pix copia e cola ou o QR Code › **Já paguei**.
+2. **Liberação:** em **Painel › Premium e vendas**, o pedido aparece "para conferir". Confira no extrato do banco o valor e o código do pedido (vai na descrição do Pix) e clique **Liberar**. O aluno vê "Premium até …".
+3. **Cortesia e lote:** na mesma tela, escolha uma pessoa e dê premium por dias, até uma data ou sem prazo. Para um personal, dê um lote de licenças; ele vê o saldo em **Painel › Meus alunos** e dá premium a um aluno com um toque.
+4. **Programa pronto:** em **Painel › Programas prontos**, publique um programa (para todos, marcado como grátis). O aluno usa em **Fichas › Programas prontos**.
+5. **Sugestão de carga:** faça um exercício duas vezes, batendo as repetições na segunda. Na terceira vez aparece "Sugestão: … kg" com o motivo. No premium, anote o esforço (6 a 10) ao terminar o exercício.
+6. **Medidas e exportação:** em **Evolução**, registre medidas (grátis: só peso) e, no premium, baixe as planilhas de séries, treinos e medidas.
+7. **Vencimento:** dê uma cortesia de 1 dia a uma conta de teste com 5 fichas ativas. No dia seguinte ela volta ao grátis e 2 fichas aparecem **bloqueadas** (dá para ver e arquivar, não para treinar).
 
 ## Problemas comuns
 

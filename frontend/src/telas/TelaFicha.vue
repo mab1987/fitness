@@ -35,6 +35,7 @@ async function excluir() {
     <template v-else>
       <EditorFicha :ficha="ficha" :nova="nova" :exercicios="treinos.exercicios" :pode-editar="podeEditar"
         :salvar="salvar" :excluir="excluir" :criar-exercicio="criarExercicio" />
+      <p v-if="ficha.bloqueada" class="cartao">Ficha bloqueada: passou do limite de 3 fichas ativas do plano grátis. Arquive-a ou <RouterLink to="/premium">renove o premium</RouterLink>.</p>
       <p v-if="ficha.prescrita && !ficha.pode_editar" class="mudo">
         Quem altera esta ficha é o seu personal. Você ajusta a carga e as repetições durante o treino: o app pergunta ao terminar cada exercício.
       </p>

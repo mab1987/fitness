@@ -175,13 +175,33 @@ function normalizarNome_(t) {
 // ---------- fichas ----------
 
 function listarFichas_(d, ctx) {
-  return fichasDe_(ctx.usuario.id, ctx.usuario, limites_(ctx));
+  var r = fichasDe_(ctx.usuario.id, ctx.usuario, limites_(ctx));
+  r.config = { incremento_padrao_kg: Number(config_('incremento_padrao_kg', APP.INCREMENTO_PADRAO_KG)) };
+  return r;
+}
+
+/**
+ * No plano grátis valem as N primeiras fichas ativas (pela ordem). Se o premium acabou com mais
+ * fichas ativas, as outras ficam bloqueadas: dá para ver e arquivar, não para treinar nem alterar.
+ */
+function fichasLiberadas_(fichas, limite) {
+  var ok = {};
+  fichas.filter(function (f) { return f.ativa && !f.excluido_em; })
+    .sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0) || (a.criado_em < b.criado_em ? -1 : 1); })
+    .slice(0, limite)
+    .forEach(function (f) { ok[f.id] = true; });
+  return ok;
+}
+
+function dentroDoLimite_(fichas, fichaId, limite) {
+  return !!fichasLiberadas_(fichas, limite)[fichaId];
 }
 
 /** Fichas de um aluno com os itens, quem prescreveu e se quem pede pode alterar. */
 function fichasDe_(alunoId, quem, limites) {
   var u = quem;
   var fichas = buscar_('fichas', { aluno_id: alunoId });
+  var liberadas = limites.fichas_ativas !== null ? fichasLiberadas_(fichas, limites.fichas_ativas) : {};
   var nomes = {};
   lerTodos_('usuarios').forEach(function (x) { nomes[x.id] = x.nome; });
   var ids = {};
@@ -196,6 +216,7 @@ function fichasDe_(alunoId, quem, limites) {
         r.prescrita = !!f.autor_id && f.autor_id !== f.aluno_id;
         r.autor_nome = r.prescrita ? nomes[f.autor_id] || '' : '';
         r.pode_editar = podeEditarFicha_(f, u);
+        r.bloqueada = limites.fichas_ativas !== null && f.ativa && !liberadas[f.id];
         r.itens = itens
           .filter(function (i) { return i.ficha_id === f.id; })
           .sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); })
@@ -221,7 +242,9 @@ function validarItem_(i, fichaId, ordem) {
     reps_atuais: texto_(i.reps_atuais, 'repetições atuais', 0, 40, false),
     descanso_seg: numero_(i.descanso_seg, 'descanso', 0, 1800, true),
     metodo: opcao_(i.metodo || '', 'método', APP.METODOS),
-    observacoes: texto_(i.observacoes, 'observações', 0, 500, false)
+    observacoes: texto_(i.observacoes, 'observações', 0, 500, false),
+    sugestao: opcao_(i.sugestao || '', 'sugestão de carga', ['', 'desligada']),
+    incremento_kg: numero_(i.incremento_kg, 'incremento', 0.25, 20, true)
   };
 }
 
@@ -251,7 +274,7 @@ function salvarFichaPara_(u, aluno, d, lim) {
     if (atual && !podeEditarFicha_(atual, u)) {
       throw erro_('PROIBIDO', atual.aluno_id === u.id ? 'Esta ficha foi prescrita pelo seu personal. Peça a ele para alterar.' : 'Ficha de outra pessoa.');
     }
-    if (ativa && lim.fichas_ativas !== null) {
+    if (ativa && lim.fichas_ativas !== null && !dentroDoLimite_(todas, fichaId, lim.fichas_ativas)) {
       var outrasAtivas = todas.filter(function (x) { return x.ativa && x.id !== fichaId; }).length;
       if (outrasAtivas >= lim.fichas_ativas) {
         throw erro_('LIMITE_PLANO', u.id === aluno.id

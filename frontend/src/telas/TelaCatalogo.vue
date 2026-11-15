@@ -13,6 +13,17 @@ const ok = ref('');
 const busca = ref('');
 const filtro = ref('geral');
 const editando = ref(null);
+const novo = ref(null);
+async function criar() {
+  erro.value = ''; ok.value = '';
+  if (novo.value.video_url && !idYoutube(novo.value.video_url)) { erro.value = 'Use um link do YouTube.'; return; }
+  try {
+    await api.criarExercicio({ ...novo.value, global: adminReal.value });
+    ok.value = `"${novo.value.nome}" criado.`;
+    novo.value = null;
+    await carregar();
+  } catch (x) { erro.value = x.message; }
+}
 
 async function carregar() {
   erro.value = '';
@@ -71,6 +82,18 @@ const STATUS = { proposto: 'aguardando o administrador', recusado: 'recusado' };
         <button class="botao secundario pequeno" type="button" @click="decidir(e, false)">Recusar</button>
       </div>
     </section>
+
+    <button v-if="!novo" class="botao secundario" type="button" style="align-self: flex-start" :disabled="!!sessao.verComo" @click="novo = { nome: '', grupo_muscular: '', equipamento: '', video_url: '' }">Novo exercício</button>
+    <form v-else class="cartao pilha" @submit.prevent="criar">
+      <h2>Novo exercício{{ adminReal ? ' no catálogo geral' : '' }}</h2>
+      <div class="grade-campos">
+        <div class="campo"><label for="nv-n">Nome</label><input id="nv-n" v-model="novo.nome" maxlength="80" /></div>
+        <div class="campo"><label for="nv-g">Grupo muscular</label><input id="nv-g" v-model="novo.grupo_muscular" maxlength="40" /></div>
+        <div class="campo"><label for="nv-e">Equipamento</label><input id="nv-e" v-model="novo.equipamento" maxlength="40" /></div>
+      </div>
+      <div class="campo"><label for="nv-v">Vídeo do YouTube (opcional)</label><input id="nv-v" v-model="novo.video_url" type="url" maxlength="300" /></div>
+      <div class="linha"><button class="botao" type="submit">Criar</button><button class="botao secundario" type="button" @click="novo = null">Cancelar</button></div>
+    </form>
 
     <div class="linha filtros">
       <div v-if="adminReal" class="segmentado dois" role="group" aria-label="Quais exercícios">

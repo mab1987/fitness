@@ -24,7 +24,7 @@ var ESQUEMA = {
   ficha_itens: {
     id: 't', ficha_id: 't', exercicio_id: 't', ordem: 'n', series: 'n', reps_prescritas: 't',
     reps_min: 'n', reps_max: 'n', carga_prescrita_kg: 'n', aumento_max_kg: 'n', carga_atual_kg: 'n',
-    reps_atuais: 't', descanso_seg: 'n', metodo: 't', observacoes: 't'
+    reps_atuais: 't', descanso_seg: 'n', metodo: 't', observacoes: 't', sugestao: 't', incremento_kg: 'n'
   },
   sessoes: { id: 't', aluno_id: 't', ficha_id: 't', inicio: 'd', fim: 'd', observacao: 't' },
   series: { id: 't', sessao_id: 't', exercicio_id: 't', ordem: 'n', tipo: 't', reps: 'n', carga_kg: 'n', rpe: 'n' },
@@ -32,16 +32,30 @@ var ESQUEMA = {
     id: 't', ficha_item_id: 't', aluno_id: 't', campo: 't', valor_anterior: 't', valor_novo: 't', visto_pelo_personal: 'b'
   },
   comentarios: { id: 't', sessao_id: 't', aluno_id: 't', autor_id: 't', texto: 't', visto: 'b' },
-  medidas: { id: 't', aluno_id: 't', data: 'd', peso_kg: 'n', campo: 't', valor: 'n' },
+  medidas: {
+    id: 't', aluno_id: 't', autor_id: 't', data: 'd', peso_kg: 'n', gordura_pct: 'n', peito_cm: 'n', cintura_cm: 'n',
+    abdomen_cm: 'n', quadril_cm: 'n', braco_d_cm: 'n', braco_e_cm: 'n', coxa_d_cm: 'n', coxa_e_cm: 'n',
+    panturrilha_cm: 'n', observacao: 't'
+  },
   configuracoes: { id: 't', valor: 't' },
   precos: { id: 't', periodo: 't', publico: 't', valor: 'n', ativo: 'b' },
   pedidos: {
-    id: 't', comprador_id: 't', periodo: 't', quantidade: 'n', valor: 'n', codigo_referencia: 't',
-    status: 't', liberado_em: 'd', liberado_por: 't'
+    id: 't', comprador_id: 't', tipo: 't', periodo: 't', quantidade: 'n', valor: 'n', codigo_referencia: 't',
+    status: 't', pago_informado_em: 'd', liberado_em: 'd', liberado_por: 't', observacao: 't'
   },
   licencas: { id: 't', usuario_id: 't', origem: 't', inicio: 'd', fim: 'd', concedida_por: 't', pedido_id: 't' },
   saldo_licencas_personal: {
-    id: 't', personal_id: 't', periodo_ou_fim: 't', origem: 't', atribuida_a: 't', atribuida_em: 'd'
+    id: 't', personal_id: 't', periodo_ou_fim: 't', origem: 't', atribuida_a: 't', atribuida_em: 'd',
+    pedido_id: 't', licenca_id: 't'
+  },
+  programas: {
+    id: 't', nome: 't', descricao: 't', objetivo: 't', nivel: 't', dias_semana: 'n', semanas: 'n',
+    autor_id: 't', grupo_id: 't', publico: 't', gratis: 'b', publicado: 'b'
+  },
+  programa_fichas: { id: 't', programa_id: 't', nome: 't', ordem: 'n' },
+  programa_itens: {
+    id: 't', programa_ficha_id: 't', exercicio_id: 't', ordem: 'n', series: 'n', reps_prescritas: 't',
+    descanso_seg: 'n', metodo: 't', observacoes: 't'
   },
   auditoria: { id: 't', usuario_id: 't', acao: 't', alvo: 't', detalhes: 't' }
 };
