@@ -14,8 +14,12 @@ var ESQUEMA = {
   recuperacoes_senha: { id: 't', usuario_id: 't', token_hash: 't', expira_em: 'd', usado_em: 'd' },
   grupos: { id: 't', nome: 't', descricao: 't' },
   membros_grupo: { id: 't', grupo_id: 't', usuario_id: 't', papel: 't' },
-  vinculos_personal: { id: 't', personal_id: 't', aluno_id: 't', status: 't', inicio: 'd' },
-  exercicios: { id: 't', nome: 't', grupo_muscular: 't', equipamento: 't', video_url: 't', criado_por: 't', global: 'b' },
+  vinculos_personal: { id: 't', personal_id: 't', aluno_id: 't', status: 't', inicio: 'd', fim: 'd' },
+  convites: {
+    id: 't', codigo_hash: 't', final_codigo: 't', tipo: 't', criado_por: 't', grupo_id: 't', papel: 't',
+    expira_em: 'd', usos_max: 'n', usos: 'n', revogado_em: 'd'
+  },
+  exercicios: { id: 't', nome: 't', grupo_muscular: 't', equipamento: 't', video_url: 't', criado_por: 't', global: 'b', status: 't' },
   fichas: { id: 't', aluno_id: 't', autor_id: 't', nome: 't', ordem: 'n', ativa: 'b' },
   ficha_itens: {
     id: 't', ficha_id: 't', exercicio_id: 't', ordem: 'n', series: 'n', reps_prescritas: 't',
@@ -27,6 +31,7 @@ var ESQUEMA = {
   ajustes: {
     id: 't', ficha_item_id: 't', aluno_id: 't', campo: 't', valor_anterior: 't', valor_novo: 't', visto_pelo_personal: 'b'
   },
+  comentarios: { id: 't', sessao_id: 't', aluno_id: 't', autor_id: 't', texto: 't', visto: 'b' },
   medidas: { id: 't', aluno_id: 't', data: 'd', peso_kg: 'n', campo: 't', valor: 'n' },
   configuracoes: { id: 't', valor: 't' },
   precos: { id: 't', periodo: 't', publico: 't', valor: 'n', ativo: 'b' },

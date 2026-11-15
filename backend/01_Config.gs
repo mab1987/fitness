@@ -10,7 +10,7 @@
  */
 var APP = {
   NOME: 'Meu treino',
-  VERSAO: '0.2.0',
+  VERSAO: '0.3.0',
   SESSAO_DIAS: 30,
   RECUPERACAO_MINUTOS: 60,
   MAX_TENTATIVAS_LOGIN: 5,
@@ -23,7 +23,9 @@ var APP = {
   METODOS: ['', 'drop-set', 'rest-pause', 'bi-set', 'tri-set', 'piramide', 'cluster', 'outro'],
   TIPOS_SERIE: ['normal', 'aquecimento', 'drop', 'falha'],
   MAX_LOTE_SESSOES: 200,
-  MAX_LOTE_SERIES: 3000
+  MAX_LOTE_SERIES: 3000,
+  CONVITE_DIAS: 7,
+  PAPEIS_GRUPO: ['membro', 'personal', 'gerente']
 };
 
 function prop_(nome, obrigatoria) {

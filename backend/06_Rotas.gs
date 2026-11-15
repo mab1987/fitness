@@ -29,7 +29,40 @@ function rotas_() {
   'treino.sincronizar':    { acesso: 'logado', escrita: true, fn: sincronizarTreino_ },
   'historico.listar':      { acesso: 'logado', fn: listarHistorico_ },
   'admin.importar.previa': { acesso: 'admin', fn: function (d, ctx) { return importarPlanilhaAntiga_(d, true, ctx.usuario); } },
-  'admin.importar.executar': { acesso: 'admin', escrita: true, fn: function (d, ctx) { return importarPlanilhaAntiga_(d, false, ctx.usuario); } }
+  'admin.importar.executar': { acesso: 'admin', escrita: true, fn: function (d, ctx) { return importarPlanilhaAntiga_(d, false, ctx.usuario); } },
+  // Fase 2: convites e vínculo
+  'convites.criar':        { acesso: 'logado', escrita: true, fn: criarConvite_ },
+  'convites.listar':       { acesso: 'logado', fn: listarConvites_ },
+  'convites.revogar':      { acesso: 'logado', escrita: true, fn: revogarConvite_ },
+  'convites.ver':          { acesso: 'logado', fn: verConvite_ },
+  'convites.aceitar':      { acesso: 'logado', escrita: true, fn: aceitarConvite_ },
+  'vinculo.meu':           { acesso: 'logado', fn: meuVinculo_ },
+  'vinculo.encerrar':      { acesso: 'logado', escrita: true, fn: encerrarVinculo_ },
+  // personal
+  'personal.alunos':       { acesso: 'logado', fn: listarAlunos_ },
+  'personal.aluno':        { acesso: 'logado', fn: lerAluno_ },
+  'personal.fichaSalvar':  { acesso: 'logado', escrita: true, fn: salvarFichaDoAluno_ },
+  'personal.fichaExcluir': { acesso: 'logado', escrita: true, fn: excluirFichaDoAluno_ },
+  'personal.ajustesVistos':{ acesso: 'logado', escrita: true, fn: marcarAjustesVistos_ },
+  'exercicios.propor':     { acesso: 'logado', escrita: true, fn: proporExercicio_ },
+  // comentários (aluno e personal)
+  'comentarios.listar':    { acesso: 'logado', fn: listarComentarios_ },
+  'comentarios.criar':     { acesso: 'logado', escrita: true, fn: criarComentario_ },
+  'comentarios.vistos':    { acesso: 'logado', escrita: true, fn: marcarComentariosVistos_ },
+  // grupos
+  'grupos.listar':         { acesso: 'logado', fn: listarGrupos_ },
+  'grupos.ler':            { acesso: 'logado', fn: lerGrupo_ },
+  'grupos.atualizar':      { acesso: 'logado', escrita: true, fn: atualizarGrupo_ },
+  'grupos.papel':          { acesso: 'logado', escrita: true, fn: definirPapelMembro_ },
+  'grupos.remover':        { acesso: 'logado', escrita: true, fn: removerMembro_ },
+  'grupos.sair':           { acesso: 'logado', escrita: true, fn: sairDoGrupo_ },
+  // administração
+  'admin.grupos.criar':    { acesso: 'admin', escrita: true, fn: criarGrupo_ },
+  'admin.grupos.excluir':  { acesso: 'admin', escrita: true, fn: excluirGrupo_ },
+  'admin.usuario.atualizar': { acesso: 'admin', escrita: true, fn: atualizarUsuarioAdmin_ },
+  'admin.catalogo':        { acesso: 'admin', fn: catalogoAdmin_ },
+  'admin.exercicio.atualizar': { acesso: 'admin', escrita: true, fn: atualizarExercicioAdmin_ },
+  'admin.exercicio.decidir': { acesso: 'admin', escrita: true, fn: decidirExercicio_ }
   };
 }
 

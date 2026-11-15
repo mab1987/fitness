@@ -39,6 +39,7 @@ with sync_playwright() as pw:
 
     # importação pela tela
     p.get_by_role('link', name='Painel').click()
+    p.get_by_role('link', name=re.compile('Importar planilha antiga')).click()
     p.fill('#imp-end', f'https://docs.google.com/spreadsheets/d/{ID_ANTIGA}/edit#gid=0')
     p.fill('#imp-ren', 'Panturrilha Sentadilha = Panturrilha Sentada')
     p.get_by_role('button', name='Ver prévia').click()
@@ -108,23 +109,23 @@ with sync_playwright() as pw:
     expect(p.locator('a.ficha', has_text='Treino A')).to_be_visible()
     foto(p, '08-fichas')
     p.locator('a.ficha', has_text='Treino A').click()
-    expect(p.locator('#nome')).to_have_value('Treino A')
-    p.fill('#busca', 'rosca')
+    expect(p.locator('input[id^="nome-"]')).to_have_value('Treino A')
+    p.locator('input[id^="busca-"]').fill( 'rosca')
     expect(p.locator('.resultado').first).to_be_visible()
     foto(p, '09-ficha-editor')
 
     # nova ficha com exercício criado na hora (com vídeo)
     p.goto(URL + '#/fichas/nova')
-    p.fill('#nome', 'Treino F')
-    p.fill('#busca', 'Afundo búlgaro')
+    p.locator('input[id^="nome-"]').fill('Treino F')
+    p.locator('input[id^="busca-"]').fill( 'Afundo búlgaro')
     p.get_by_role('button', name=re.compile('Criar "Afundo búlgaro"')).click()
-    p.fill('#ne-g', 'Pernas'); p.fill('#ne-v', 'https://youtu.be/dQw4w9WgXcQ')
+    p.locator('input[id^="ne-g-"]').fill('Pernas'); p.locator('input[id^="ne-v-"]').fill('https://youtu.be/dQw4w9WgXcQ')
     p.get_by_role('button', name='Criar e adicionar').click()
     p.get_by_role('button', name='Salvar ficha').click()
     expect(p.get_by_text('Ficha salva.')).to_be_visible()
 
     # ver como aluno grátis: limite aparece e nada grava
-    p.get_by_role('link', name='Painel').click()
+    p.get_by_role('link', name='Painel', exact=True).click()
     p.select_option('#papel', 'aluno_gratis'); p.get_by_role('button', name='Ver como').click()
     expect(p.get_by_text(re.compile('Vendo como'))).to_be_visible()
     p.get_by_role('link', name='Fichas').click()

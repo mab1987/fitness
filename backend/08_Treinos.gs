@@ -87,9 +87,33 @@ function limites_(ctx) {
   };
 }
 
-/** O aluno dono da ficha e quem a escreveu (o personal, na fase 2) podem alterá-la. */
+/**
+ * Quem altera uma ficha:
+ * - o personal que a prescreveu, enquanto o vínculo com o aluno estiver ativo;
+ * - o aluno, se a ficha é dele e foi ele quem fez, ou se o vínculo com quem prescreveu já acabou.
+ * Enquanto o vínculo existe, a ficha prescrita só muda pelo personal; o aluno sobe carga e repetições pelo treino.
+ */
 function podeEditarFicha_(ficha, u) {
-  return ficha.aluno_id === u.id || ficha.autor_id === u.id;
+  if (ficha.autor_id === u.id && ficha.aluno_id !== u.id) return vinculoAtivo_(u.id, ficha.aluno_id);
+  if (ficha.aluno_id !== u.id) return false;
+  return ficha.autor_id === u.id || !ficha.autor_id || !vinculoAtivo_(ficha.autor_id, u.id);
+}
+
+/**
+ * Exercícios que a pessoa pode ver e usar: os do catálogo geral, os que ela criou
+ * e os que aparecem nas fichas dela (um exercício próprio do personal numa ficha prescrita).
+ */
+function exerciciosVisiveis_(u, todos) {
+  var nasFichas = {};
+  var minhas = {};
+  buscar_('fichas', { aluno_id: u.id }).forEach(function (f) { minhas[f.id] = true; });
+  lerTodos_('ficha_itens').forEach(function (i) { if (minhas[i.ficha_id]) nasFichas[i.exercicio_id] = true; });
+  var vis = {};
+  (todos || lerTodos_('exercicios', true)).forEach(function (e) {
+    if (e.excluido_em && !nasFichas[e.id]) return;
+    if (e.global || e.criado_por === u.id || nasFichas[e.id]) vis[e.id] = e;
+  });
+  return vis;
 }
 
 function exercicioVisivel_(ex, u) {
@@ -99,10 +123,8 @@ function exercicioVisivel_(ex, u) {
 // ---------- exercícios ----------
 
 function listarExercicios_(d, ctx) {
-  var u = ctx.usuario;
-  return lerTodos_('exercicios')
-    .filter(function (e) { return exercicioVisivel_(e, u); })
-    .map(function (e) { return publico_(e, []); })
+  var vis = exerciciosVisiveis_(ctx.usuario);
+  return Object.keys(vis).map(function (k) { return publico_(vis[k], []); })
     .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
 }
 
@@ -153,17 +175,27 @@ function normalizarNome_(t) {
 // ---------- fichas ----------
 
 function listarFichas_(d, ctx) {
-  var u = ctx.usuario;
-  var fichas = buscar_('fichas', { aluno_id: u.id });
+  return fichasDe_(ctx.usuario.id, ctx.usuario, limites_(ctx));
+}
+
+/** Fichas de um aluno com os itens, quem prescreveu e se quem pede pode alterar. */
+function fichasDe_(alunoId, quem, limites) {
+  var u = quem;
+  var fichas = buscar_('fichas', { aluno_id: alunoId });
+  var nomes = {};
+  lerTodos_('usuarios').forEach(function (x) { nomes[x.id] = x.nome; });
   var ids = {};
   fichas.forEach(function (f) { ids[f.id] = true; });
   var itens = lerTodos_('ficha_itens').filter(function (i) { return ids[i.ficha_id]; });
   return {
-    limites: limites_(ctx),
+    limites: limites,
     fichas: fichas
       .sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); })
       .map(function (f) {
         var r = publico_(f, []);
+        r.prescrita = !!f.autor_id && f.autor_id !== f.aluno_id;
+        r.autor_nome = r.prescrita ? nomes[f.autor_id] || '' : '';
+        r.pode_editar = podeEditarFicha_(f, u);
         r.itens = itens
           .filter(function (i) { return i.ficha_id === f.id; })
           .sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); })
@@ -199,34 +231,43 @@ function validarItem_(i, fichaId, ordem) {
  * Itens que não vierem na lista são removidos da ficha (exclusão lógica).
  */
 function salvarFicha_(d, ctx) {
-  var u = ctx.usuario;
+  return salvarFichaPara_(ctx.usuario, ctx.usuario, d, limites_(ctx));
+}
+
+/** u = quem salva; aluno = dono da ficha (o próprio u, ou um aluno do personal). */
+function salvarFichaPara_(u, aluno, d, lim) {
   var f = d.ficha && typeof d.ficha === 'object' ? d.ficha : {};
   var fichaId = id_(f.id, 'ficha');
   var nome = texto_(f.nome, 'nome da ficha', 1, 60, true);
   var ativa = f.ativa !== false;
   var ordem = numero_(f.ordem, 'ordem', 0, 999, true) || 0;
   var itens = lista_(d.itens, 'itens', 60).map(function (i, n) { return validarItem_(i, fichaId, n + 1); });
-  var lim = limites_(ctx);
 
   return comBloqueio_(function () {
-    var todas = buscar_('fichas', { aluno_id: u.id });
+    if (u.id !== aluno.id && !vinculoAtivo_(u.id, aluno.id)) throw erro_('PROIBIDO', 'Esta pessoa não é sua aluna.');
+    var todas = buscar_('fichas', { aluno_id: aluno.id });
     var atual = buscarUm_('fichas', { id: fichaId }, true);
-    if (atual && (atual.excluido_em || !podeEditarFicha_(atual, u))) throw erro_('PROIBIDO', 'Ficha de outra pessoa.');
+    if (atual && (atual.excluido_em || atual.aluno_id !== aluno.id)) throw erro_('PROIBIDO', 'Ficha de outra pessoa.');
+    if (atual && !podeEditarFicha_(atual, u)) {
+      throw erro_('PROIBIDO', atual.aluno_id === u.id ? 'Esta ficha foi prescrita pelo seu personal. Peça a ele para alterar.' : 'Ficha de outra pessoa.');
+    }
     if (ativa && lim.fichas_ativas !== null) {
       var outrasAtivas = todas.filter(function (x) { return x.ativa && x.id !== fichaId; }).length;
       if (outrasAtivas >= lim.fichas_ativas) {
-        throw erro_('LIMITE_PLANO', 'No plano grátis você pode ter até ' + lim.fichas_ativas + ' fichas ativas. Arquive uma ou assine o premium.');
+        throw erro_('LIMITE_PLANO', u.id === aluno.id
+          ? 'No plano grátis você pode ter até ' + lim.fichas_ativas + ' fichas ativas. Arquive uma ou assine o premium.'
+          : 'Este aluno está no plano grátis: até ' + lim.fichas_ativas + ' fichas ativas. Arquive uma antes.');
       }
     }
-    var visiveis = {};
-    lerTodos_('exercicios').forEach(function (e) { if (exercicioVisivel_(e, u)) visiveis[e.id] = true; });
+    var visiveis = exerciciosVisiveis_(u);
+    var doAluno = exerciciosVisiveis_(aluno);
     itens.forEach(function (i) {
-      if (!visiveis[i.exercicio_id]) throw erro_('VALIDACAO', 'Exercício não encontrado no catálogo.');
+      if (!visiveis[i.exercicio_id] && !doAluno[i.exercicio_id]) throw erro_('VALIDACAO', 'Exercício não encontrado no catálogo.');
     });
 
     var ficha = atual
       ? atualizarSemBloqueio_('fichas', fichaId, { nome: nome, ativa: ativa, ordem: ordem })
-      : inserirSemBloqueio_('fichas', { id: fichaId, aluno_id: u.id, autor_id: u.id, nome: nome, ordem: ordem, ativa: ativa });
+      : inserirSemBloqueio_('fichas', { id: fichaId, aluno_id: aluno.id, autor_id: u.id, nome: nome, ordem: ordem, ativa: ativa });
 
     var existentes = lerTodos_('ficha_itens', true);
     var porId = {};
@@ -252,7 +293,8 @@ function excluirFicha_(d, ctx) {
   var id = id_(d.id, 'ficha');
   return comBloqueio_(function () {
     var f = buscarUm_('fichas', { id: id });
-    if (!f || !podeEditarFicha_(f, u)) throw erro_('NAO_ENCONTRADO', 'Ficha não encontrada.');
+    if (!f || (f.aluno_id !== u.id && f.autor_id !== u.id)) throw erro_('NAO_ENCONTRADO', 'Ficha não encontrada.');
+    if (!podeEditarFicha_(f, u)) throw erro_('PROIBIDO', 'Esta ficha foi prescrita pelo seu personal. Peça a ele para alterar.');
     atualizarSemBloqueio_('fichas', id, { excluido_em: agora_(), ativa: false });
     return { excluida: id };
   });
@@ -320,8 +362,7 @@ function sincronizarTreino_(d, ctx) {
     // séries: a sessão precisa ser do aluno (já gravada ou chegando agora)
     var minhasSessoes = {};
     buscar_('sessoes', { aluno_id: u.id }, true).forEach(function (s) { minhasSessoes[s.id] = true; });
-    var visiveis = {};
-    lerTodos_('exercicios', true).forEach(function (e) { if (exercicioVisivel_(e, u)) visiveis[e.id] = true; });
+    var visiveis = exerciciosVisiveis_(u);
     series.forEach(function (s) {
       if (!minhasSessoes[s.sessao_id]) throw erro_('PROIBIDO', 'Sessão de outra pessoa.');
       if (!visiveis[s.exercicio_id]) throw erro_('VALIDACAO', 'Exercício não encontrado no catálogo.');
@@ -373,9 +414,13 @@ function sincronizarTreino_(d, ctx) {
  * O histórico completo aparece nos dois planos; exportar é só no premium (rota própria, fase 3).
  */
 function listarHistorico_(d, ctx) {
-  var u = ctx.usuario;
-  var desde = dataIso_(d.desde, 'desde', true);
-  var sessoes = buscar_('sessoes', { aluno_id: u.id }, !!desde);
+  var h = historicoDe_(ctx.usuario.id, dataIso_(d.desde, 'desde', true));
+  h.limites = limites_(ctx);
+  return h;
+}
+
+function historicoDe_(alunoId, desde) {
+  var sessoes = buscar_('sessoes', { aluno_id: alunoId }, !!desde);
   var ids = {};
   sessoes.forEach(function (s) { ids[s.id] = true; });
   var series = lerTodos_('series', !!desde).filter(function (s) { return ids[s.sessao_id]; });
@@ -384,7 +429,6 @@ function listarHistorico_(d, ctx) {
     series = series.filter(function (s) { return s.atualizado_em > desde; });
   }
   return {
-    limites: limites_(ctx),
     servidor_em: agora_(),
     sessoes: sessoes.map(function (s) { return publico_(s, []); }).sort(function (a, b) { return a.inicio < b.inicio ? 1 : -1; }),
     series: series.map(function (s) { return publico_(s, []); })

@@ -1397,7 +1397,7 @@
  */
 var APP = {
   NOME: 'Meu treino',
-  VERSAO: '0.2.0',
+  VERSAO: '0.3.0',
   SESSAO_DIAS: 30,
   RECUPERACAO_MINUTOS: 60,
   MAX_TENTATIVAS_LOGIN: 5,
@@ -1410,7 +1410,9 @@ var APP = {
   METODOS: ['', 'drop-set', 'rest-pause', 'bi-set', 'tri-set', 'piramide', 'cluster', 'outro'],
   TIPOS_SERIE: ['normal', 'aquecimento', 'drop', 'falha'],
   MAX_LOTE_SESSOES: 200,
-  MAX_LOTE_SERIES: 3000
+  MAX_LOTE_SERIES: 3000,
+  CONVITE_DIAS: 7,
+  PAPEIS_GRUPO: ['membro', 'personal', 'gerente']
 };
 
 function prop_(nome, obrigatoria) {
@@ -1462,8 +1464,12 @@ var ESQUEMA = {
   recuperacoes_senha: { id: 't', usuario_id: 't', token_hash: 't', expira_em: 'd', usado_em: 'd' },
   grupos: { id: 't', nome: 't', descricao: 't' },
   membros_grupo: { id: 't', grupo_id: 't', usuario_id: 't', papel: 't' },
-  vinculos_personal: { id: 't', personal_id: 't', aluno_id: 't', status: 't', inicio: 'd' },
-  exercicios: { id: 't', nome: 't', grupo_muscular: 't', equipamento: 't', video_url: 't', criado_por: 't', global: 'b' },
+  vinculos_personal: { id: 't', personal_id: 't', aluno_id: 't', status: 't', inicio: 'd', fim: 'd' },
+  convites: {
+    id: 't', codigo_hash: 't', final_codigo: 't', tipo: 't', criado_por: 't', grupo_id: 't', papel: 't',
+    expira_em: 'd', usos_max: 'n', usos: 'n', revogado_em: 'd'
+  },
+  exercicios: { id: 't', nome: 't', grupo_muscular: 't', equipamento: 't', video_url: 't', criado_por: 't', global: 'b', status: 't' },
   fichas: { id: 't', aluno_id: 't', autor_id: 't', nome: 't', ordem: 'n', ativa: 'b' },
   ficha_itens: {
     id: 't', ficha_id: 't', exercicio_id: 't', ordem: 'n', series: 'n', reps_prescritas: 't',
@@ -1475,6 +1481,7 @@ var ESQUEMA = {
   ajustes: {
     id: 't', ficha_item_id: 't', aluno_id: 't', campo: 't', valor_anterior: 't', valor_novo: 't', visto_pelo_personal: 'b'
   },
+  comentarios: { id: 't', sessao_id: 't', aluno_id: 't', autor_id: 't', texto: 't', visto: 'b' },
   medidas: { id: 't', aluno_id: 't', data: 'd', peso_kg: 'n', campo: 't', valor: 'n' },
   configuracoes: { id: 't', valor: 't' },
   precos: { id: 't', periodo: 't', publico: 't', valor: 'n', ativo: 'b' },
@@ -2029,7 +2036,40 @@ function rotas_() {
   'treino.sincronizar':    { acesso: 'logado', escrita: true, fn: sincronizarTreino_ },
   'historico.listar':      { acesso: 'logado', fn: listarHistorico_ },
   'admin.importar.previa': { acesso: 'admin', fn: function (d, ctx) { return importarPlanilhaAntiga_(d, true, ctx.usuario); } },
-  'admin.importar.executar': { acesso: 'admin', escrita: true, fn: function (d, ctx) { return importarPlanilhaAntiga_(d, false, ctx.usuario); } }
+  'admin.importar.executar': { acesso: 'admin', escrita: true, fn: function (d, ctx) { return importarPlanilhaAntiga_(d, false, ctx.usuario); } },
+  // Fase 2: convites e vínculo
+  'convites.criar':        { acesso: 'logado', escrita: true, fn: criarConvite_ },
+  'convites.listar':       { acesso: 'logado', fn: listarConvites_ },
+  'convites.revogar':      { acesso: 'logado', escrita: true, fn: revogarConvite_ },
+  'convites.ver':          { acesso: 'logado', fn: verConvite_ },
+  'convites.aceitar':      { acesso: 'logado', escrita: true, fn: aceitarConvite_ },
+  'vinculo.meu':           { acesso: 'logado', fn: meuVinculo_ },
+  'vinculo.encerrar':      { acesso: 'logado', escrita: true, fn: encerrarVinculo_ },
+  // personal
+  'personal.alunos':       { acesso: 'logado', fn: listarAlunos_ },
+  'personal.aluno':        { acesso: 'logado', fn: lerAluno_ },
+  'personal.fichaSalvar':  { acesso: 'logado', escrita: true, fn: salvarFichaDoAluno_ },
+  'personal.fichaExcluir': { acesso: 'logado', escrita: true, fn: excluirFichaDoAluno_ },
+  'personal.ajustesVistos':{ acesso: 'logado', escrita: true, fn: marcarAjustesVistos_ },
+  'exercicios.propor':     { acesso: 'logado', escrita: true, fn: proporExercicio_ },
+  // comentários (aluno e personal)
+  'comentarios.listar':    { acesso: 'logado', fn: listarComentarios_ },
+  'comentarios.criar':     { acesso: 'logado', escrita: true, fn: criarComentario_ },
+  'comentarios.vistos':    { acesso: 'logado', escrita: true, fn: marcarComentariosVistos_ },
+  // grupos
+  'grupos.listar':         { acesso: 'logado', fn: listarGrupos_ },
+  'grupos.ler':            { acesso: 'logado', fn: lerGrupo_ },
+  'grupos.atualizar':      { acesso: 'logado', escrita: true, fn: atualizarGrupo_ },
+  'grupos.papel':          { acesso: 'logado', escrita: true, fn: definirPapelMembro_ },
+  'grupos.remover':        { acesso: 'logado', escrita: true, fn: removerMembro_ },
+  'grupos.sair':           { acesso: 'logado', escrita: true, fn: sairDoGrupo_ },
+  // administração
+  'admin.grupos.criar':    { acesso: 'admin', escrita: true, fn: criarGrupo_ },
+  'admin.grupos.excluir':  { acesso: 'admin', escrita: true, fn: excluirGrupo_ },
+  'admin.usuario.atualizar': { acesso: 'admin', escrita: true, fn: atualizarUsuarioAdmin_ },
+  'admin.catalogo':        { acesso: 'admin', fn: catalogoAdmin_ },
+  'admin.exercicio.atualizar': { acesso: 'admin', escrita: true, fn: atualizarExercicioAdmin_ },
+  'admin.exercicio.decidir': { acesso: 'admin', escrita: true, fn: decidirExercicio_ }
   };
 }
 
@@ -2220,9 +2260,33 @@ function limites_(ctx) {
   };
 }
 
-/** O aluno dono da ficha e quem a escreveu (o personal, na fase 2) podem alterá-la. */
+/**
+ * Quem altera uma ficha:
+ * - o personal que a prescreveu, enquanto o vínculo com o aluno estiver ativo;
+ * - o aluno, se a ficha é dele e foi ele quem fez, ou se o vínculo com quem prescreveu já acabou.
+ * Enquanto o vínculo existe, a ficha prescrita só muda pelo personal; o aluno sobe carga e repetições pelo treino.
+ */
 function podeEditarFicha_(ficha, u) {
-  return ficha.aluno_id === u.id || ficha.autor_id === u.id;
+  if (ficha.autor_id === u.id && ficha.aluno_id !== u.id) return vinculoAtivo_(u.id, ficha.aluno_id);
+  if (ficha.aluno_id !== u.id) return false;
+  return ficha.autor_id === u.id || !ficha.autor_id || !vinculoAtivo_(ficha.autor_id, u.id);
+}
+
+/**
+ * Exercícios que a pessoa pode ver e usar: os do catálogo geral, os que ela criou
+ * e os que aparecem nas fichas dela (um exercício próprio do personal numa ficha prescrita).
+ */
+function exerciciosVisiveis_(u, todos) {
+  var nasFichas = {};
+  var minhas = {};
+  buscar_('fichas', { aluno_id: u.id }).forEach(function (f) { minhas[f.id] = true; });
+  lerTodos_('ficha_itens').forEach(function (i) { if (minhas[i.ficha_id]) nasFichas[i.exercicio_id] = true; });
+  var vis = {};
+  (todos || lerTodos_('exercicios', true)).forEach(function (e) {
+    if (e.excluido_em && !nasFichas[e.id]) return;
+    if (e.global || e.criado_por === u.id || nasFichas[e.id]) vis[e.id] = e;
+  });
+  return vis;
 }
 
 function exercicioVisivel_(ex, u) {
@@ -2232,10 +2296,8 @@ function exercicioVisivel_(ex, u) {
 // ---------- exercícios ----------
 
 function listarExercicios_(d, ctx) {
-  var u = ctx.usuario;
-  return lerTodos_('exercicios')
-    .filter(function (e) { return exercicioVisivel_(e, u); })
-    .map(function (e) { return publico_(e, []); })
+  var vis = exerciciosVisiveis_(ctx.usuario);
+  return Object.keys(vis).map(function (k) { return publico_(vis[k], []); })
     .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
 }
 
@@ -2286,17 +2348,27 @@ function normalizarNome_(t) {
 // ---------- fichas ----------
 
 function listarFichas_(d, ctx) {
-  var u = ctx.usuario;
-  var fichas = buscar_('fichas', { aluno_id: u.id });
+  return fichasDe_(ctx.usuario.id, ctx.usuario, limites_(ctx));
+}
+
+/** Fichas de um aluno com os itens, quem prescreveu e se quem pede pode alterar. */
+function fichasDe_(alunoId, quem, limites) {
+  var u = quem;
+  var fichas = buscar_('fichas', { aluno_id: alunoId });
+  var nomes = {};
+  lerTodos_('usuarios').forEach(function (x) { nomes[x.id] = x.nome; });
   var ids = {};
   fichas.forEach(function (f) { ids[f.id] = true; });
   var itens = lerTodos_('ficha_itens').filter(function (i) { return ids[i.ficha_id]; });
   return {
-    limites: limites_(ctx),
+    limites: limites,
     fichas: fichas
       .sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); })
       .map(function (f) {
         var r = publico_(f, []);
+        r.prescrita = !!f.autor_id && f.autor_id !== f.aluno_id;
+        r.autor_nome = r.prescrita ? nomes[f.autor_id] || '' : '';
+        r.pode_editar = podeEditarFicha_(f, u);
         r.itens = itens
           .filter(function (i) { return i.ficha_id === f.id; })
           .sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); })
@@ -2332,34 +2404,43 @@ function validarItem_(i, fichaId, ordem) {
  * Itens que não vierem na lista são removidos da ficha (exclusão lógica).
  */
 function salvarFicha_(d, ctx) {
-  var u = ctx.usuario;
+  return salvarFichaPara_(ctx.usuario, ctx.usuario, d, limites_(ctx));
+}
+
+/** u = quem salva; aluno = dono da ficha (o próprio u, ou um aluno do personal). */
+function salvarFichaPara_(u, aluno, d, lim) {
   var f = d.ficha && typeof d.ficha === 'object' ? d.ficha : {};
   var fichaId = id_(f.id, 'ficha');
   var nome = texto_(f.nome, 'nome da ficha', 1, 60, true);
   var ativa = f.ativa !== false;
   var ordem = numero_(f.ordem, 'ordem', 0, 999, true) || 0;
   var itens = lista_(d.itens, 'itens', 60).map(function (i, n) { return validarItem_(i, fichaId, n + 1); });
-  var lim = limites_(ctx);
 
   return comBloqueio_(function () {
-    var todas = buscar_('fichas', { aluno_id: u.id });
+    if (u.id !== aluno.id && !vinculoAtivo_(u.id, aluno.id)) throw erro_('PROIBIDO', 'Esta pessoa não é sua aluna.');
+    var todas = buscar_('fichas', { aluno_id: aluno.id });
     var atual = buscarUm_('fichas', { id: fichaId }, true);
-    if (atual && (atual.excluido_em || !podeEditarFicha_(atual, u))) throw erro_('PROIBIDO', 'Ficha de outra pessoa.');
+    if (atual && (atual.excluido_em || atual.aluno_id !== aluno.id)) throw erro_('PROIBIDO', 'Ficha de outra pessoa.');
+    if (atual && !podeEditarFicha_(atual, u)) {
+      throw erro_('PROIBIDO', atual.aluno_id === u.id ? 'Esta ficha foi prescrita pelo seu personal. Peça a ele para alterar.' : 'Ficha de outra pessoa.');
+    }
     if (ativa && lim.fichas_ativas !== null) {
       var outrasAtivas = todas.filter(function (x) { return x.ativa && x.id !== fichaId; }).length;
       if (outrasAtivas >= lim.fichas_ativas) {
-        throw erro_('LIMITE_PLANO', 'No plano grátis você pode ter até ' + lim.fichas_ativas + ' fichas ativas. Arquive uma ou assine o premium.');
+        throw erro_('LIMITE_PLANO', u.id === aluno.id
+          ? 'No plano grátis você pode ter até ' + lim.fichas_ativas + ' fichas ativas. Arquive uma ou assine o premium.'
+          : 'Este aluno está no plano grátis: até ' + lim.fichas_ativas + ' fichas ativas. Arquive uma antes.');
       }
     }
-    var visiveis = {};
-    lerTodos_('exercicios').forEach(function (e) { if (exercicioVisivel_(e, u)) visiveis[e.id] = true; });
+    var visiveis = exerciciosVisiveis_(u);
+    var doAluno = exerciciosVisiveis_(aluno);
     itens.forEach(function (i) {
-      if (!visiveis[i.exercicio_id]) throw erro_('VALIDACAO', 'Exercício não encontrado no catálogo.');
+      if (!visiveis[i.exercicio_id] && !doAluno[i.exercicio_id]) throw erro_('VALIDACAO', 'Exercício não encontrado no catálogo.');
     });
 
     var ficha = atual
       ? atualizarSemBloqueio_('fichas', fichaId, { nome: nome, ativa: ativa, ordem: ordem })
-      : inserirSemBloqueio_('fichas', { id: fichaId, aluno_id: u.id, autor_id: u.id, nome: nome, ordem: ordem, ativa: ativa });
+      : inserirSemBloqueio_('fichas', { id: fichaId, aluno_id: aluno.id, autor_id: u.id, nome: nome, ordem: ordem, ativa: ativa });
 
     var existentes = lerTodos_('ficha_itens', true);
     var porId = {};
@@ -2385,7 +2466,8 @@ function excluirFicha_(d, ctx) {
   var id = id_(d.id, 'ficha');
   return comBloqueio_(function () {
     var f = buscarUm_('fichas', { id: id });
-    if (!f || !podeEditarFicha_(f, u)) throw erro_('NAO_ENCONTRADO', 'Ficha não encontrada.');
+    if (!f || (f.aluno_id !== u.id && f.autor_id !== u.id)) throw erro_('NAO_ENCONTRADO', 'Ficha não encontrada.');
+    if (!podeEditarFicha_(f, u)) throw erro_('PROIBIDO', 'Esta ficha foi prescrita pelo seu personal. Peça a ele para alterar.');
     atualizarSemBloqueio_('fichas', id, { excluido_em: agora_(), ativa: false });
     return { excluida: id };
   });
@@ -2453,8 +2535,7 @@ function sincronizarTreino_(d, ctx) {
     // séries: a sessão precisa ser do aluno (já gravada ou chegando agora)
     var minhasSessoes = {};
     buscar_('sessoes', { aluno_id: u.id }, true).forEach(function (s) { minhasSessoes[s.id] = true; });
-    var visiveis = {};
-    lerTodos_('exercicios', true).forEach(function (e) { if (exercicioVisivel_(e, u)) visiveis[e.id] = true; });
+    var visiveis = exerciciosVisiveis_(u);
     series.forEach(function (s) {
       if (!minhasSessoes[s.sessao_id]) throw erro_('PROIBIDO', 'Sessão de outra pessoa.');
       if (!visiveis[s.exercicio_id]) throw erro_('VALIDACAO', 'Exercício não encontrado no catálogo.');
@@ -2506,9 +2587,13 @@ function sincronizarTreino_(d, ctx) {
  * O histórico completo aparece nos dois planos; exportar é só no premium (rota própria, fase 3).
  */
 function listarHistorico_(d, ctx) {
-  var u = ctx.usuario;
-  var desde = dataIso_(d.desde, 'desde', true);
-  var sessoes = buscar_('sessoes', { aluno_id: u.id }, !!desde);
+  var h = historicoDe_(ctx.usuario.id, dataIso_(d.desde, 'desde', true));
+  h.limites = limites_(ctx);
+  return h;
+}
+
+function historicoDe_(alunoId, desde) {
+  var sessoes = buscar_('sessoes', { aluno_id: alunoId }, !!desde);
   var ids = {};
   sessoes.forEach(function (s) { ids[s.id] = true; });
   var series = lerTodos_('series', !!desde).filter(function (s) { return ids[s.sessao_id]; });
@@ -2517,7 +2602,6 @@ function listarHistorico_(d, ctx) {
     series = series.filter(function (s) { return s.atualizado_em > desde; });
   }
   return {
-    limites: limites_(ctx),
     servidor_em: agora_(),
     sessoes: sessoes.map(function (s) { return publico_(s, []); }).sort(function (a, b) { return a.inicio < b.inicio ? 1 : -1; }),
     series: series.map(function (s) { return publico_(s, []); })
@@ -2840,4 +2924,552 @@ function parecidos_(chave, todos) {
 
 function idImportacao_(tipo, chave) {
   return 'imp_' + tipo + '_' + sha256_('importacao|' + tipo + '|' + chave).slice(0, 24);
+}
+
+
+// ===== 10_Pessoas.gs =====
+/**
+ * Fase 2: convites, vínculo personal–aluno, acompanhamento pelo personal e comentários.
+ *
+ * Convite = código de 8 letras/números (ou link com o código) que vale 7 dias.
+ * Só o hash do código fica na planilha; quem cria vê o código uma única vez.
+ * O aluno precisa aceitar: é ele quem autoriza o personal a ver os treinos dele.
+ */
+var ALFABETO_CONVITE_ = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sem 0/O e 1/I, que se confundem
+
+// ---------- vínculo ----------
+
+function vinculoAtivo_(personalId, alunoId) {
+  if (!personalId || !alunoId || personalId === alunoId) return false;
+  var p = buscarUm_('usuarios', { id: personalId });
+  if (!p || !p.ativo || !p.personal_ativo) return false;
+  return buscar_('vinculos_personal', { personal_id: personalId, aluno_id: alunoId })
+    .some(function (v) { return v.status === 'ativo'; });
+}
+
+function exigirAlunoDoPersonal_(ctx, alunoId) {
+  var u = ctx.usuario;
+  if (!u.personal_ativo && !u.admin) throw erro_('PROIBIDO', 'Sem permissão.');
+  var aluno = buscarUm_('usuarios', { id: id_(alunoId, 'aluno') });
+  if (!aluno) throw erro_('NAO_ENCONTRADO', 'Aluno não encontrado.');
+  if (!vinculoAtivo_(u.id, aluno.id)) throw erro_('PROIBIDO', 'Esta pessoa não é sua aluna.');
+  return aluno;
+}
+
+/** Plano do aluno decide o limite de fichas, mesmo quando é o personal quem prescreve. */
+function limitesDoAluno_(aluno) {
+  var gratis = planoAtual_(aluno).tipo !== 'premium';
+  return { plano: gratis ? 'gratis' : 'premium', fichas_ativas: gratis ? APP.LIMITE_FICHAS_GRATIS : null, dias_grafico: gratis ? APP.DIAS_GRAFICO_GRATIS : null, exportar: !gratis };
+}
+
+function meuVinculo_(d, ctx) {
+  var u = ctx.usuario;
+  var v = buscar_('vinculos_personal', { aluno_id: u.id }).filter(function (x) { return x.status === 'ativo'; })[0];
+  if (!v) return { personal: null };
+  var p = buscarUm_('usuarios', { id: v.personal_id });
+  return { personal: p ? { vinculo_id: v.id, nome: p.nome, email: p.email, desde: v.inicio, ativo: !!(p.ativo && p.personal_ativo) } : null };
+}
+
+/** Qualquer um dos dois lados pode encerrar. As fichas ficam com o aluno, que passa a poder alterá-las. */
+function encerrarVinculo_(d, ctx) {
+  var u = ctx.usuario;
+  var id = id_(d.vinculo_id, 'vínculo');
+  return comBloqueio_(function () {
+    var v = buscarUm_('vinculos_personal', { id: id });
+    if (!v || (v.aluno_id !== u.id && v.personal_id !== u.id) || v.status !== 'ativo') throw erro_('NAO_ENCONTRADO', 'Vínculo não encontrado.');
+    atualizarSemBloqueio_('vinculos_personal', id, { status: 'encerrado', fim: agora_() });
+    inserirSemBloqueio_('auditoria', { usuario_id: u.id, acao: 'vinculo.encerrar', alvo: id, detalhes: '' });
+    return { encerrado: id };
+  });
+}
+
+// ---------- convites ----------
+
+function gerarCodigo_() {
+  var bytes = bytesAleatorios_(8);
+  return bytes.map(function (b) { return ALFABETO_CONVITE_.charAt((b & 0xff) % ALFABETO_CONVITE_.length); }).join('');
+}
+
+function normalizarCodigo_(c) {
+  var t = String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (t.length !== 8) throw erro_('VALIDACAO', 'O código tem 8 letras e números.');
+  return t;
+}
+
+/**
+ * dados: { tipo: 'personal' } (personal convida aluno)
+ *     ou { tipo: 'grupo', grupo_id, papel: 'membro' | 'personal' | 'gerente' } (gerente ou admin)
+ * usos_max: quantas pessoas podem usar (1 a 50; padrão 1 para personal, 30 para grupo).
+ */
+function criarConvite_(d, ctx) {
+  var u = ctx.usuario;
+  var tipo = opcao_(d.tipo, 'tipo de convite', ['personal', 'grupo']);
+  var reg = { tipo: tipo, criado_por: u.id, grupo_id: '', papel: 'aluno' };
+  if (tipo === 'personal') {
+    if (!u.personal_ativo) throw erro_('PROIBIDO', 'Só personal ativo convida alunos.');
+  } else {
+    var g = exigirGerenteDoGrupo_(ctx, d.grupo_id);
+    reg.grupo_id = g.id;
+    reg.papel = opcao_(d.papel || 'membro', 'papel no grupo', APP.PAPEIS_GRUPO);
+    if (reg.papel === 'gerente' && !u.admin) throw erro_('PROIBIDO', 'Só o administrador define gerentes.');
+  }
+  reg.usos_max = numero_(d.usos_max, 'quantidade de usos', 1, 50, true) || (tipo === 'grupo' ? 30 : 1);
+  var codigo = gerarCodigo_();
+  reg.codigo_hash = sha256_('convite|' + codigo);
+  reg.final_codigo = codigo.slice(-3);
+  reg.expira_em = new Date(Date.now() + APP.CONVITE_DIAS * 864e5).toISOString();
+  reg.usos = 0;
+  var salvo = inserir_('convites', reg);
+  var base = prop_('APP_URL', false) || '';
+  return {
+    id: salvo.id, codigo: codigo, expira_em: reg.expira_em, usos_max: reg.usos_max,
+    link: base ? base.replace(/\/?$/, '/') + '#/convite/' + codigo : ''
+  };
+}
+
+function listarConvites_(d, ctx) {
+  var u = ctx.usuario;
+  var agora = agora_();
+  return buscar_('convites', { criado_por: u.id })
+    .filter(function (c) { return !c.revogado_em && c.expira_em > agora && c.usos < c.usos_max; })
+    .map(function (c) { return publico_(c, ['codigo_hash']); });
+}
+
+function revogarConvite_(d, ctx) {
+  var id = id_(d.id, 'convite');
+  return comBloqueio_(function () {
+    var c = buscarUm_('convites', { id: id });
+    if (!c || (c.criado_por !== ctx.usuario.id && !ctx.usuario.admin)) throw erro_('NAO_ENCONTRADO', 'Convite não encontrado.');
+    atualizarSemBloqueio_('convites', id, { revogado_em: agora_() });
+    return { revogado: id };
+  });
+}
+
+function acharConvite_(codigo, u) {
+  var chave = 'convite:' + u.id;
+  if (tentativasEsgotadas_(chave)) throw erro_('BLOQUEADO', 'Muitos códigos errados. Espere 15 minutos.');
+  var hash = sha256_('convite|' + normalizarCodigo_(codigo));
+  var c = buscarUm_('convites', { codigo_hash: hash });
+  if (!c || c.revogado_em || c.expira_em < agora_() || c.usos >= c.usos_max) {
+    contarTentativa_(chave);
+    throw erro_('CONVITE_INVALIDO', 'Código inválido ou vencido. Peça um novo a quem convidou.');
+  }
+  return c;
+}
+
+/** Mostra o que o convite faz antes de aceitar. */
+function verConvite_(d, ctx) {
+  var c = acharConvite_(d.codigo, ctx.usuario);
+  var autor = buscarUm_('usuarios', { id: c.criado_por });
+  var r = { tipo: c.tipo, papel: c.papel, de: autor ? autor.nome : '', expira_em: c.expira_em };
+  if (c.tipo === 'grupo') {
+    var g = buscarUm_('grupos', { id: c.grupo_id });
+    r.grupo = g ? g.nome : '';
+  } else {
+    var atual = meuVinculo_({}, ctx).personal;
+    r.personal_atual = atual ? atual.nome : null;
+  }
+  return r;
+}
+
+function aceitarConvite_(d, ctx) {
+  var u = ctx.usuario;
+  var c0 = acharConvite_(d.codigo, u);
+  return comBloqueio_(function () {
+    var c = buscarUm_('convites', { id: c0.id });
+    if (c.usos >= c.usos_max) throw erro_('CONVITE_INVALIDO', 'Este convite já foi usado.');
+    if (c.criado_por === u.id) throw erro_('VALIDACAO', 'Este convite é seu. Envie para outra pessoa.');
+    var r;
+    if (c.tipo === 'personal') {
+      var p = buscarUm_('usuarios', { id: c.criado_por });
+      if (!p || !p.ativo || !p.personal_ativo) throw erro_('CONVITE_INVALIDO', 'Quem convidou não está mais como personal.');
+      // Um personal por vez: aceitar outro encerra o anterior.
+      buscar_('vinculos_personal', { aluno_id: u.id }).forEach(function (v) {
+        if (v.status === 'ativo' && v.personal_id !== p.id) atualizarSemBloqueio_('vinculos_personal', v.id, { status: 'encerrado', fim: agora_() });
+      });
+      var ja = buscar_('vinculos_personal', { aluno_id: u.id, personal_id: p.id }).filter(function (v) { return v.status === 'ativo'; })[0];
+      if (!ja) inserirSemBloqueio_('vinculos_personal', { personal_id: p.id, aluno_id: u.id, status: 'ativo', inicio: agora_() });
+      r = { tipo: 'personal', personal: p.nome };
+    } else {
+      var g = buscarUm_('grupos', { id: c.grupo_id });
+      if (!g) throw erro_('CONVITE_INVALIDO', 'O grupo não existe mais.');
+      if (c.papel === 'personal' && !u.personal_ativo) {
+        throw erro_('PROIBIDO', 'Este convite é para personal. Peça ao administrador para ativar seu papel de personal.');
+      }
+      var m = buscar_('membros_grupo', { grupo_id: g.id, usuario_id: u.id })[0];
+      if (m) atualizarSemBloqueio_('membros_grupo', m.id, { papel: maiorPapel_(m.papel, c.papel) });
+      else inserirSemBloqueio_('membros_grupo', { grupo_id: g.id, usuario_id: u.id, papel: c.papel });
+      r = { tipo: 'grupo', grupo: g.nome, papel: c.papel };
+    }
+    atualizarSemBloqueio_('convites', c.id, { usos: (c.usos || 0) + 1 });
+    inserirSemBloqueio_('auditoria', { usuario_id: u.id, acao: 'convite.aceitar', alvo: c.id, detalhes: c.tipo });
+    zerarTentativas_('convite:' + u.id);
+    return r;
+  });
+}
+
+function maiorPapel_(a, b) {
+  var ordem = ['membro', 'personal', 'gerente'];
+  return ordem.indexOf(a) >= ordem.indexOf(b) ? a : b;
+}
+
+// ---------- personal: alunos ----------
+
+function listarAlunos_(d, ctx) {
+  var u = ctx.usuario;
+  if (!u.personal_ativo && !u.admin) throw erro_('PROIBIDO', 'Sem permissão.');
+  var vinc = buscar_('vinculos_personal', { personal_id: u.id }).filter(function (v) { return v.status === 'ativo'; });
+  if (!vinc.length) return [];
+  var ids = {};
+  vinc.forEach(function (v) { ids[v.aluno_id] = v; });
+  var sessoes = lerTodos_('sessoes').filter(function (s) { return ids[s.aluno_id]; });
+  var minhasFichas = {};
+  lerTodos_('fichas').forEach(function (f) { if (ids[f.aluno_id]) minhasFichas[f.id] = f.aluno_id; });
+  var itemDe = {};
+  lerTodos_('ficha_itens').forEach(function (i) { if (minhasFichas[i.ficha_id]) itemDe[i.id] = minhasFichas[i.ficha_id]; });
+  var ajustes = lerTodos_('ajustes').filter(function (a) { return ids[a.aluno_id] && !a.visto_pelo_personal; });
+  var comentarios = lerTodos_('comentarios').filter(function (c) { return ids[c.aluno_id] && c.autor_id === c.aluno_id && !c.visto; });
+  var h7 = new Date(Date.now() - 7 * 864e5).toISOString();
+  var h30 = new Date(Date.now() - 30 * 864e5).toISOString();
+  return lerTodos_('usuarios')
+    .filter(function (a) { return ids[a.id]; })
+    .map(function (a) {
+      var s = sessoes.filter(function (x) { return x.aluno_id === a.id; });
+      var ultima = s.reduce(function (m, x) { return !m || x.inicio > m ? x.inicio : m; }, null);
+      return {
+        id: a.id, nome: a.nome, email: a.email, vinculo_id: ids[a.id].id, desde: ids[a.id].inicio,
+        plano: planoAtual_(a).tipo,
+        ultimo_treino: ultima,
+        treinos_7d: s.filter(function (x) { return x.inicio >= h7; }).length,
+        treinos_30d: s.filter(function (x) { return x.inicio >= h30; }).length,
+        ajustes_novos: ajustes.filter(function (x) { return x.aluno_id === a.id; }).length,
+        comentarios_novos: comentarios.filter(function (x) { return x.aluno_id === a.id; }).length
+      };
+    })
+    .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+}
+
+/** Tudo o que o personal precisa para acompanhar um aluno. */
+function lerAluno_(d, ctx) {
+  var aluno = exigirAlunoDoPersonal_(ctx, d.aluno_id);
+  var fichas = fichasDe_(aluno.id, ctx.usuario, limitesDoAluno_(aluno));
+  var hist = historicoDe_(aluno.id, null);
+  var nomes = {};
+  lerTodos_('usuarios').forEach(function (x) { nomes[x.id] = x.nome; });
+  var itens = {};
+  fichas.fichas.forEach(function (f) { f.itens.forEach(function (i) { itens[i.id] = { ficha: f.nome, exercicio_id: i.exercicio_id }; }); });
+  // exercícios que aparecem nas fichas e no histórico do aluno, mais os que o personal pode usar
+  var vis = exerciciosVisiveis_(ctx.usuario);
+  var doAluno = exerciciosVisiveis_(aluno);
+  var exercicios = {};
+  Object.keys(vis).concat(Object.keys(doAluno)).forEach(function (k) { exercicios[k] = publico_(vis[k] || doAluno[k], []); });
+  lerTodos_('exercicios', true).forEach(function (e) {
+    if (!exercicios[e.id] && hist.series.some(function (s) { return s.exercicio_id === e.id; })) exercicios[e.id] = publico_(e, []);
+  });
+  return {
+    aluno: { id: aluno.id, nome: aluno.nome, email: aluno.email, plano: planoAtual_(aluno) },
+    limites: fichas.limites,
+    fichas: fichas.fichas,
+    historico: { sessoes: hist.sessoes, series: hist.series },
+    exercicios: Object.keys(exercicios).map(function (k) { return exercicios[k]; }).sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); }),
+    ajustes: buscar_('ajustes', { aluno_id: aluno.id })
+      .map(function (a) { var r = publico_(a, []); r.ficha = (itens[a.ficha_item_id] || {}).ficha || ''; r.exercicio_id = (itens[a.ficha_item_id] || {}).exercicio_id || ''; return r; })
+      .sort(function (a, b) { return a.criado_em < b.criado_em ? 1 : -1; }),
+    comentarios: comentariosDe_(aluno.id, nomes)
+  };
+}
+
+function salvarFichaDoAluno_(d, ctx) {
+  var aluno = exigirAlunoDoPersonal_(ctx, d.aluno_id);
+  return salvarFichaPara_(ctx.usuario, aluno, d, limitesDoAluno_(aluno));
+}
+
+function excluirFichaDoAluno_(d, ctx) {
+  var aluno = exigirAlunoDoPersonal_(ctx, d.aluno_id);
+  var id = id_(d.id, 'ficha');
+  return comBloqueio_(function () {
+    var f = buscarUm_('fichas', { id: id });
+    if (!f || f.aluno_id !== aluno.id || f.autor_id !== ctx.usuario.id) throw erro_('NAO_ENCONTRADO', 'Só dá para excluir fichas que você prescreveu.');
+    atualizarSemBloqueio_('fichas', id, { excluido_em: agora_(), ativa: false });
+    return { excluida: id };
+  });
+}
+
+function marcarAjustesVistos_(d, ctx) {
+  var aluno = exigirAlunoDoPersonal_(ctx, d.aluno_id);
+  return comBloqueio_(function () {
+    var lista = buscar_('ajustes', { aluno_id: aluno.id }).filter(function (a) { return !a.visto_pelo_personal; });
+    upsertLoteSemBloqueio_('ajustes', lista.map(function (a) { return { id: a.id, visto_pelo_personal: true }; }));
+    return { vistos: lista.length };
+  });
+}
+
+// ---------- comentários ----------
+
+function comentariosDe_(alunoId, nomes) {
+  return buscar_('comentarios', { aluno_id: alunoId })
+    .map(function (c) { var r = publico_(c, []); r.autor_nome = nomes[c.autor_id] || ''; return r; })
+    .sort(function (a, b) { return a.criado_em < b.criado_em ? -1 : 1; });
+}
+
+/** Aluno: os comentários dos treinos dele. Personal: os de um aluno (dados.aluno_id). */
+function listarComentarios_(d, ctx) {
+  var alunoId = d.aluno_id ? exigirAlunoDoPersonal_(ctx, d.aluno_id).id : ctx.usuario.id;
+  var nomes = {};
+  lerTodos_('usuarios').forEach(function (x) { nomes[x.id] = x.nome; });
+  return comentariosDe_(alunoId, nomes);
+}
+
+function criarComentario_(d, ctx) {
+  var u = ctx.usuario;
+  var sessao = buscarUm_('sessoes', { id: id_(d.sessao_id, 'treino') });
+  if (!sessao) throw erro_('NAO_ENCONTRADO', 'Treino não encontrado.');
+  if (sessao.aluno_id !== u.id && !vinculoAtivo_(u.id, sessao.aluno_id)) throw erro_('PROIBIDO', 'Sem permissão.');
+  var texto = texto_(d.texto, 'comentário', 1, 1000, true);
+  var c = inserir_('comentarios', { id: d.id ? id_(d.id) : novoId_(), sessao_id: sessao.id, aluno_id: sessao.aluno_id, autor_id: u.id, texto: texto, visto: false });
+  var r = publico_(c, []);
+  r.autor_nome = u.nome;
+  return r;
+}
+
+/** Marca como vistos os comentários escritos pelo outro lado. */
+function marcarComentariosVistos_(d, ctx) {
+  var u = ctx.usuario;
+  var alunoId = d.aluno_id ? exigirAlunoDoPersonal_(ctx, d.aluno_id).id : u.id;
+  return comBloqueio_(function () {
+    var lista = buscar_('comentarios', { aluno_id: alunoId }).filter(function (c) { return !c.visto && c.autor_id !== u.id; });
+    upsertLoteSemBloqueio_('comentarios', lista.map(function (c) { return { id: c.id, visto: true }; }));
+    return { vistos: lista.length };
+  });
+}
+
+
+// ===== 11_Grupos.gs =====
+/**
+ * Fase 2: grupos (gerente e membros) e administração (usuários, papéis e catálogo).
+ * O gerente vê só um resumo dos membros (quantos treinos fizeram), nunca cargas e séries:
+ * os detalhes do treino são do aluno e do personal dele.
+ */
+
+// ---------- grupos ----------
+
+function exigirGerenteDoGrupo_(ctx, grupoId) {
+  var g = buscarUm_('grupos', { id: id_(grupoId, 'grupo') });
+  if (!g) throw erro_('NAO_ENCONTRADO', 'Grupo não encontrado.');
+  if (ctx.usuario.admin) return g;
+  var m = buscar_('membros_grupo', { grupo_id: g.id, usuario_id: ctx.usuario.id })[0];
+  if (!m || m.papel !== 'gerente') throw erro_('PROIBIDO', 'Só o gerente do grupo faz isso.');
+  return g;
+}
+
+function criarGrupo_(d, ctx) {
+  var nome = texto_(d.nome, 'nome do grupo', 2, 60, true);
+  var descricao = texto_(d.descricao, 'descrição', 0, 300, false);
+  var gerente = null;
+  if (d.gerente_email) {
+    gerente = buscarUm_('usuarios', { email: email_(d.gerente_email) });
+    if (!gerente) throw erro_('NAO_ENCONTRADO', 'Nenhuma conta com esse e-mail. A pessoa precisa se cadastrar antes, ou envie um convite de gerente.');
+  }
+  return comBloqueio_(function () {
+    if (lerTodos_('grupos').some(function (g) { return normalizarNome_(g.nome) === normalizarNome_(nome); })) throw erro_('DUPLICADO', 'Já existe um grupo com esse nome.');
+    var g = inserirSemBloqueio_('grupos', { nome: nome, descricao: descricao });
+    if (gerente) inserirSemBloqueio_('membros_grupo', { grupo_id: g.id, usuario_id: gerente.id, papel: 'gerente' });
+    inserirSemBloqueio_('auditoria', { usuario_id: ctx.usuario.id, acao: 'grupo.criar', alvo: g.id, detalhes: nome });
+    return publico_(g, []);
+  });
+}
+
+function atualizarGrupo_(d, ctx) {
+  var g = exigirGerenteDoGrupo_(ctx, d.id);
+  var campos = {};
+  if (d.nome !== undefined) campos.nome = texto_(d.nome, 'nome do grupo', 2, 60, true);
+  if (d.descricao !== undefined) campos.descricao = texto_(d.descricao, 'descrição', 0, 300, false);
+  return publico_(atualizar_('grupos', g.id, campos), []);
+}
+
+function excluirGrupo_(d, ctx) {
+  var g = buscarUm_('grupos', { id: id_(d.id, 'grupo') });
+  if (!g) throw erro_('NAO_ENCONTRADO', 'Grupo não encontrado.');
+  return comBloqueio_(function () {
+    var t = agora_();
+    atualizarSemBloqueio_('grupos', g.id, { excluido_em: t });
+    upsertLoteSemBloqueio_('membros_grupo', buscar_('membros_grupo', { grupo_id: g.id }).map(function (m) { return { id: m.id, excluido_em: t }; }));
+    inserirSemBloqueio_('auditoria', { usuario_id: ctx.usuario.id, acao: 'grupo.excluir', alvo: g.id, detalhes: g.nome });
+    return { excluido: g.id };
+  });
+}
+
+/** Admin: todos. Outros: os grupos de que participa, com o papel. */
+function listarGrupos_(d, ctx) {
+  var u = ctx.usuario;
+  var membros = lerTodos_('membros_grupo');
+  var meus = {};
+  membros.forEach(function (m) { if (m.usuario_id === u.id) meus[m.grupo_id] = m.papel; });
+  return lerTodos_('grupos')
+    .filter(function (g) { return u.admin || meus[g.id]; })
+    .map(function (g) {
+      var r = publico_(g, []);
+      r.meu_papel = meus[g.id] || (u.admin ? 'admin' : null);
+      r.membros = membros.filter(function (m) { return m.grupo_id === g.id; }).length;
+      return r;
+    })
+    .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+}
+
+/** Gerente e admin: membros com resumo de frequência. Membro comum: só nome do grupo e do gerente. */
+function lerGrupo_(d, ctx) {
+  var u = ctx.usuario;
+  var g = buscarUm_('grupos', { id: id_(d.id, 'grupo') });
+  if (!g) throw erro_('NAO_ENCONTRADO', 'Grupo não encontrado.');
+  var membros = buscar_('membros_grupo', { grupo_id: g.id });
+  var eu = membros.filter(function (m) { return m.usuario_id === u.id; })[0];
+  if (!eu && !u.admin) throw erro_('PROIBIDO', 'Você não participa deste grupo.');
+  var usuarios = {};
+  lerTodos_('usuarios').forEach(function (x) { usuarios[x.id] = x; });
+  var gerentes = membros.filter(function (m) { return m.papel === 'gerente'; }).map(function (m) { return (usuarios[m.usuario_id] || {}).nome; });
+  var base = { grupo: publico_(g, []), meu_papel: eu ? eu.papel : 'admin', gerentes: gerentes.filter(Boolean) };
+  if (!u.admin && eu.papel !== 'gerente') return base;
+
+  var ids = {};
+  membros.forEach(function (m) { ids[m.usuario_id] = true; });
+  var sessoes = lerTodos_('sessoes').filter(function (s) { return ids[s.aluno_id]; });
+  var h7 = new Date(Date.now() - 7 * 864e5).toISOString();
+  var h30 = new Date(Date.now() - 30 * 864e5).toISOString();
+  base.membros = membros.map(function (m) {
+    var p = usuarios[m.usuario_id] || {};
+    var s = sessoes.filter(function (x) { return x.aluno_id === m.usuario_id; });
+    return {
+      id: m.id, usuario_id: m.usuario_id, nome: p.nome || '(conta removida)', email: p.email || '', papel: m.papel,
+      desde: m.criado_em,
+      treinos_7d: s.filter(function (x) { return x.inicio >= h7; }).length,
+      treinos_30d: s.filter(function (x) { return x.inicio >= h30; }).length,
+      ultimo_treino: s.reduce(function (mx, x) { return !mx || x.inicio > mx ? x.inicio : mx; }, null)
+    };
+  }).sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+  base.resumo = {
+    membros: membros.length,
+    ativos_7d: base.membros.filter(function (m) { return m.treinos_7d > 0; }).length,
+    treinos_30d: base.membros.reduce(function (t, m) { return t + m.treinos_30d; }, 0)
+  };
+  base.convites = buscar_('convites', { grupo_id: g.id })
+    .filter(function (c) { return !c.revogado_em && c.expira_em > agora_() && c.usos < c.usos_max; })
+    .map(function (c) { return publico_(c, ['codigo_hash']); });
+  return base;
+}
+
+function definirPapelMembro_(d, ctx) {
+  var g = exigirGerenteDoGrupo_(ctx, d.grupo_id);
+  var papel = opcao_(d.papel, 'papel no grupo', APP.PAPEIS_GRUPO);
+  if (papel === 'gerente' && !ctx.usuario.admin) throw erro_('PROIBIDO', 'Só o administrador define gerentes.');
+  return comBloqueio_(function () {
+    var m = buscarUm_('membros_grupo', { id: id_(d.membro_id, 'membro') });
+    if (!m || m.grupo_id !== g.id) throw erro_('NAO_ENCONTRADO', 'Membro não encontrado.');
+    if (m.papel === 'gerente' && !ctx.usuario.admin) throw erro_('PROIBIDO', 'Só o administrador muda um gerente.');
+    if (papel === 'personal') {
+      var p = buscarUm_('usuarios', { id: m.usuario_id });
+      if (!p || !p.personal_ativo) throw erro_('VALIDACAO', 'Esta pessoa não tem o papel de personal ativo.');
+    }
+    atualizarSemBloqueio_('membros_grupo', m.id, { papel: papel });
+    inserirSemBloqueio_('auditoria', { usuario_id: ctx.usuario.id, acao: 'grupo.papel', alvo: m.id, detalhes: papel });
+    return { membro_id: m.id, papel: papel };
+  });
+}
+
+function removerMembro_(d, ctx) {
+  var g = exigirGerenteDoGrupo_(ctx, d.grupo_id);
+  return comBloqueio_(function () {
+    var m = buscarUm_('membros_grupo', { id: id_(d.membro_id, 'membro') });
+    if (!m || m.grupo_id !== g.id) throw erro_('NAO_ENCONTRADO', 'Membro não encontrado.');
+    if (m.papel === 'gerente' && !ctx.usuario.admin) throw erro_('PROIBIDO', 'Só o administrador remove um gerente.');
+    atualizarSemBloqueio_('membros_grupo', m.id, { excluido_em: agora_() });
+    inserirSemBloqueio_('auditoria', { usuario_id: ctx.usuario.id, acao: 'grupo.remover', alvo: m.id, detalhes: m.usuario_id });
+    return { removido: m.id };
+  });
+}
+
+function sairDoGrupo_(d, ctx) {
+  var gid = id_(d.grupo_id, 'grupo');
+  return comBloqueio_(function () {
+    var m = buscar_('membros_grupo', { grupo_id: gid, usuario_id: ctx.usuario.id })[0];
+    if (!m) throw erro_('NAO_ENCONTRADO', 'Você não participa deste grupo.');
+    atualizarSemBloqueio_('membros_grupo', m.id, { excluido_em: agora_() });
+    return { saiu: gid };
+  });
+}
+
+// ---------- administração ----------
+
+/** Liga ou desliga conta, papel de personal e de administrador. */
+function atualizarUsuarioAdmin_(d, ctx) {
+  var alvo = buscarUm_('usuarios', { id: id_(d.usuario_id, 'usuário') });
+  if (!alvo) throw erro_('NAO_ENCONTRADO', 'Usuário não encontrado.');
+  var campos = {};
+  if (d.ativo !== undefined) campos.ativo = d.ativo === true;
+  if (d.personal_ativo !== undefined) campos.personal_ativo = d.personal_ativo === true;
+  if (d.admin !== undefined) campos.admin = d.admin === true;
+  if (alvo.id === ctx.usuario.id && (campos.ativo === false || campos.admin === false)) {
+    throw erro_('VALIDACAO', 'Você não pode desativar a própria conta nem tirar o seu acesso de administrador.');
+  }
+  if (!Object.keys(campos).length) throw erro_('VALIDACAO', 'Nada para alterar.');
+  var novo = atualizar_('usuarios', alvo.id, campos);
+  registrarAuditoria_(ctx.usuario.id, 'admin.usuario', alvo.id, JSON.stringify(campos));
+  if (campos.ativo === false) revogarSessoesDe_(alvo.id);
+  return publico_(Object.assign({}, novo, { plano: planoAtual_(novo) }), CAMPOS_OCULTOS_USUARIO_);
+}
+
+function revogarSessoesDe_(usuarioId) {
+  comBloqueio_(function () {
+    var t = agora_();
+    var cache = CacheService.getScriptCache();
+    var lista = buscar_('sessoes_login', { usuario_id: usuarioId }).filter(function (s) { return !s.revogada_em; });
+    upsertLoteSemBloqueio_('sessoes_login', lista.map(function (s) { cache.remove('sess:' + s.token_hash); return { id: s.id, revogada_em: t }; }));
+  });
+}
+
+/** Catálogo inteiro para o administrador: gerais, propostos e os de cada pessoa. */
+function catalogoAdmin_(d, ctx) {
+  var nomes = {};
+  lerTodos_('usuarios').forEach(function (x) { nomes[x.id] = x.nome; });
+  var usos = {};
+  lerTodos_('ficha_itens').forEach(function (i) { usos[i.exercicio_id] = (usos[i.exercicio_id] || 0) + 1; });
+  return lerTodos_('exercicios').map(function (e) {
+    var r = publico_(e, []);
+    r.autor_nome = nomes[e.criado_por] || '';
+    r.usos = usos[e.id] || 0;
+    return r;
+  }).sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+}
+
+/** Personal propõe um exercício seu para o catálogo geral. */
+function proporExercicio_(d, ctx) {
+  var u = ctx.usuario;
+  if (!u.personal_ativo && !u.admin) throw erro_('PROIBIDO', 'Só personal propõe exercícios para o catálogo.');
+  var ex = buscarUm_('exercicios', { id: id_(d.id, 'exercício') });
+  if (!ex || ex.criado_por !== u.id) throw erro_('NAO_ENCONTRADO', 'Exercício não encontrado.');
+  if (ex.global) throw erro_('VALIDACAO', 'Este exercício já está no catálogo geral.');
+  return publico_(atualizar_('exercicios', ex.id, { status: 'proposto' }), []);
+}
+
+function decidirExercicio_(d, ctx) {
+  var ex = buscarUm_('exercicios', { id: id_(d.id, 'exercício') });
+  if (!ex) throw erro_('NAO_ENCONTRADO', 'Exercício não encontrado.');
+  var aceitar = d.aceitar === true;
+  var r = atualizar_('exercicios', ex.id, aceitar ? { global: true, status: '' } : { status: 'recusado' });
+  registrarAuditoria_(ctx.usuario.id, aceitar ? 'catalogo.aceitar' : 'catalogo.recusar', ex.id, ex.nome);
+  return publico_(r, []);
+}
+
+/** Admin altera qualquer exercício, inclusive tirar do catálogo geral. */
+function atualizarExercicioAdmin_(d, ctx) {
+  var ex = buscarUm_('exercicios', { id: id_(d.id, 'exercício') });
+  if (!ex) throw erro_('NAO_ENCONTRADO', 'Exercício não encontrado.');
+  var campos = {};
+  if (d.nome !== undefined) campos.nome = texto_(d.nome, 'nome', 2, 80, true);
+  if (d.grupo_muscular !== undefined) campos.grupo_muscular = texto_(d.grupo_muscular, 'grupo muscular', 0, 40, false);
+  if (d.equipamento !== undefined) campos.equipamento = texto_(d.equipamento, 'equipamento', 0, 40, false);
+  if (d.video_url !== undefined) campos.video_url = videoYoutube_(d.video_url);
+  if (d.global !== undefined) campos.global = d.global === true;
+  var r = atualizar_('exercicios', ex.id, campos);
+  registrarAuditoria_(ctx.usuario.id, 'catalogo.editar', ex.id, JSON.stringify(campos).slice(0, 500));
+  return publico_(r, []);
 }

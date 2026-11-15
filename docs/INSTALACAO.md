@@ -1,6 +1,8 @@
 # Meu treino — como colocar no ar
 
-> **Já instalou a Fase 0?** Vá direto para a [Parte 4 — Atualizar para a Fase 1](#parte-4--atualizar-para-a-fase-1) e depois para a [Parte 5 — Importar a planilha antiga](#parte-5--importar-a-planilha-antiga).
+> **Já está na Fase 1?** Vá direto para a [Parte 7 — Atualizar para a Fase 2](#parte-7--atualizar-para-a-fase-2).
+>
+> **Já instalou a Fase 0?** Vá para a [Parte 4 — Atualizar para a Fase 1](#parte-4--atualizar-para-a-fase-1) e depois para a [Parte 5 — Importar a planilha antiga](#parte-5--importar-a-planilha-antiga).
 
 São três partes: a planilha com o servidor (Apps Script), o site (GitHub Pages) e o teste final. Leva cerca de 30 minutos na primeira vez.
 
@@ -15,7 +17,7 @@ São três partes: a planilha com o servidor (Apps Script), o site (GitHub Pages
 5. Volte ao editor, abra o arquivo `appsscript.json` e substitua o conteúdo pelo de `backend/appsscript.json`. Salve.
 6. No topo do editor, escolha a função **setup** e clique em **Executar**.
    - O Google vai pedir autorização. Escolha sua conta. Se aparecer "O Google não verificou este app", clique em **Avançado > Acessar Meu treino – servidor (não seguro)**: o aviso aparece porque o script é seu e não passou pela verificação do Google.
-   - No registro de execução deve aparecer **"Pronto: 19 abas conferidas"**. A planilha agora tem as 19 abas do modelo de dados.
+   - No registro de execução deve aparecer **"Pronto: 21 abas conferidas"** (19 nas versões anteriores à Fase 2). A planilha agora tem as abas do modelo de dados.
 7. Rode também a função **testarSenha**. O registro mostra quanto tempo o servidor leva para proteger uma senha. Até uns 3 segundos está ok.
 8. Em **Configurações do projeto > Propriedades do script**, clique em **Adicionar propriedade** e crie:
    - `ADMIN_EMAIL` = o e-mail com que você vai se cadastrar no app (essa conta vira administradora);
@@ -92,6 +94,25 @@ Pode importar de novo, até com outros nomes em Renomear: nada é duplicado. Fic
 3. **Fichas:** crie uma ficha, busque um exercício, crie um exercício novo com link do YouTube e salve. No treino, o botão **Vídeo** abre o vídeo.
 4. **Evolução:** escolha um exercício e veja o gráfico, os recordes e o histórico.
 5. **Ver como aluno grátis:** em Fichas aparece o limite de 3 fichas; em Evolução, o gráfico mostra só o último mês.
+
+## Parte 7 — Atualizar para a Fase 2
+
+1. **Servidor.** No Apps Script, troque todo o conteúdo de `Código.gs` pelo novo `backend/dist/Codigo.gs` e salve.
+2. Rode **setup**. Ela cria as abas `convites` e `comentarios` e acrescenta as colunas novas (`fim` em `vinculos_personal`, `status` em `exercicios`). Deve aparecer **"Pronto: 21 abas conferidas"**.
+3. **Implantar > Gerenciar implantações** > lápis > **Versão: Nova versão** > Descrição `Fase 2` > **Implantar**. Abra a URL `/exec`: deve aparecer `"versao":"0.3.0"`.
+4. **Site.** Junte o pull request da Fase 2 no GitHub. O site é publicado sozinho.
+5. **Última vez com Ctrl+Shift+R.** A partir desta versão o app se atualiza sozinho: confere se há versão nova ao ser aberto, ao voltar para ele e a cada 30 minutos, e recarrega a página. Só esta primeira troca ainda pode pedir um Ctrl+Shift+R no computador (ou fechar e abrir o app no celular duas vezes).
+
+## Parte 8 — Teste de passagem da Fase 2
+
+Use duas contas além da sua (por exemplo, um amigo personal e um aluno, ou contas de teste com outros e-mails e CPFs).
+
+1. **Personal:** em **Painel › Usuários**, clique em **Tornar personal** na conta do personal. Ele entra, vai em **Painel › Meus alunos › Gerar convite** e envia a mensagem com o link.
+2. **Aluno:** abre o link (se ainda não tiver conta, cadastra e o convite reabre sozinho) e **aceita**. Em **Perfil › Personal e grupos** aparece o nome do personal.
+3. **Ficha prescrita:** o personal abre o aluno › **Fichas › Nova ficha**, monta e salva. No celular do aluno a ficha aparece com "por Fulano" e não pode ser alterada por ele.
+4. **Ajuste e comentário:** o aluno faz o treino, sobe uma carga e aceita "Usar essa carga no próximo treino?". O personal vê **1 ajuste** na lista de alunos e, na aba **Treinos**, comenta. O aluno vê o aviso de comentário no Início e responde em **Evolução**.
+5. **Grupo:** em **Painel › Grupos**, crie um grupo (com ou sem gerente), gere um convite e use o código em **Perfil** de outra conta. A tabela do grupo mostra a pessoa e quantos treinos ela fez.
+6. **Catálogo:** o personal propõe um exercício seu em **Painel › Meus exercícios**. Você aceita em **Painel › Catálogo de exercícios** e ele passa a aparecer para todos.
 
 ## Problemas comuns
 

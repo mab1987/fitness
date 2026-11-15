@@ -15,12 +15,15 @@ export const treinos = reactive({
   historicoEm: null, // hora do servidor da última leitura do histórico
   atual: null, // treino em andamento
   fila: [], // lotes esperando envio
+  comentarios: [], // conversas com o personal sobre os treinos
+  personal: null, // { vinculo_id, nome, ... } do personal do aluno
   enviando: false,
   online: typeof navigator === 'undefined' ? true : navigator.onLine,
   erro: '',
 });
 
 export const pendentes = computed(() => treinos.fila.length);
+export const comentariosNovos = computed(() => treinos.comentarios.filter((c) => !c.visto && c.autor_id !== sessao.perfil?.id).length);
 export const exercicioPorId = computed(() => new Map(treinos.exercicios.map((e) => [e.id, e])));
 
 const chave = (nome) => `u:${sessao.perfil?.id || 'anon'}:${nome}`;
@@ -31,7 +34,8 @@ export function carregarTreinos(forcar = false) {
   if (carregando && !forcar) return carregando;
   carregando = (async () => {
     if (!treinos.carregado) {
-      const [ex, fi, hi, at, fila] = await Promise.all(['exercicios', 'fichas', 'historico', 'atual', 'fila'].map((n) => ler(chave(n))));
+      const [ex, fi, hi, at, fila, com] = await Promise.all(['exercicios', 'fichas', 'historico', 'atual', 'fila', 'comentarios'].map((n) => ler(chave(n))));
+      if (com) treinos.comentarios = com;
       if (ex) treinos.exercicios = ex;
       if (fi) { treinos.fichas = fi.fichas; treinos.limites = fi.limites; }
       if (hi) { treinos.historico = hi.dados; treinos.historicoEm = hi.em; }
@@ -52,7 +56,11 @@ export async function atualizarDoServidor() {
     treinos.fichas = fi.fichas;
     treinos.limites = fi.limites;
     await atualizarHistorico();
+    const [com, vin] = await Promise.all([api.listarComentarios(), api.meuVinculo()]);
+    treinos.comentarios = com;
+    treinos.personal = vin.personal;
     if (!sessao.verComo) {
+      await gravar(chave('comentarios'), treinos.comentarios);
       await gravar(chave('exercicios'), ex);
       await gravar(chave('fichas'), fi);
     }
@@ -106,6 +114,22 @@ export async function criarExercicio(dados) {
   treinos.exercicios = [...treinos.exercicios, e].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   await gravar(chave('exercicios'), treinos.exercicios);
   return e;
+}
+
+// ---------- comentários (precisam de internet) ----------
+
+export async function comentar(sessaoId, texto) {
+  const c = await api.criarComentario({ id: novoId(), sessao_id: sessaoId, texto });
+  treinos.comentarios = [...treinos.comentarios, c];
+  await gravar(chave('comentarios'), treinos.comentarios);
+  return c;
+}
+
+export async function marcarComentariosVistos() {
+  if (!comentariosNovos.value || sessao.verComo) return;
+  await api.comentariosVistos();
+  treinos.comentarios = treinos.comentarios.map((c) => (c.autor_id !== sessao.perfil?.id ? { ...c, visto: true } : c));
+  await gravar(chave('comentarios'), treinos.comentarios);
 }
 
 // ---------- treino em andamento (funciona sem internet) ----------
@@ -214,7 +238,7 @@ export async function limparDoAparelho() {
   const prefixo = chave('');
   Object.assign(treinos, {
     carregado: false, exercicios: [], fichas: [], historico: { sessoes: [], series: [] },
-    historicoEm: null, atual: null, fila: [], erro: '',
+    historicoEm: null, atual: null, fila: [], comentarios: [], erro: '',
   });
   await apagarComPrefixo(prefixo);
 }

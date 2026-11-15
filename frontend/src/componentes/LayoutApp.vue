@@ -2,11 +2,16 @@
 import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../servicos/dados.js';
+import { CHAVE_CONVITE } from '../router.js';
 import { sessao, definirPerfil, papeisEfetivos, planoEfetivo, textoPlano, PAPEIS_VER_COMO } from '../servicos/sessao.js';
 import { treinos, pendentes, recarregarTudo, carregarTreinos } from '../servicos/treinos.js';
 
 onMounted(() => {
   carregarTreinos();
+  try {
+    const pendente = localStorage.getItem(CHAVE_CONVITE);
+    if (pendente) { localStorage.removeItem(CHAVE_CONVITE); router.push('/convite/' + encodeURIComponent(pendente)); }
+  } catch { /* sem armazenamento */ }
   // Atualiza plano e papéis (por exemplo, uma licença liberada pelo administrador).
   if (!sessao.verComo) api.lerPerfil().then(definirPerfil).catch(() => {});
 });
