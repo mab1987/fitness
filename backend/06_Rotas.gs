@@ -19,7 +19,17 @@ function rotas_() {
   'perfil.atualizar':      { acesso: 'logado', escrita: true, fn: atualizarPerfil_ },
   'admin.usuarios.listar': { acesso: 'admin', fn: listarUsuarios_ },
   'admin.personal.definir':{ acesso: 'admin', escrita: true, fn: definirPersonal_ },
-  'admin.verComo':         { acesso: 'admin', fn: registrarVerComo_ }
+  'admin.verComo':         { acesso: 'admin', fn: registrarVerComo_ },
+  'exercicios.listar':     { acesso: 'logado', fn: listarExercicios_ },
+  'exercicios.criar':      { acesso: 'logado', escrita: true, fn: criarExercicio_ },
+  'exercicios.atualizar':  { acesso: 'logado', escrita: true, fn: atualizarExercicio_ },
+  'fichas.listar':         { acesso: 'logado', fn: listarFichas_ },
+  'fichas.salvar':         { acesso: 'logado', escrita: true, fn: salvarFicha_ },
+  'fichas.excluir':        { acesso: 'logado', escrita: true, fn: excluirFicha_ },
+  'treino.sincronizar':    { acesso: 'logado', escrita: true, fn: sincronizarTreino_ },
+  'historico.listar':      { acesso: 'logado', fn: listarHistorico_ },
+  'admin.importar.previa': { acesso: 'admin', fn: function (d, ctx) { return importarPlanilhaAntiga_(d, true, ctx.usuario); } },
+  'admin.importar.executar': { acesso: 'admin', escrita: true, fn: function (d, ctx) { return importarPlanilhaAntiga_(d, false, ctx.usuario); } }
   };
 }
 
