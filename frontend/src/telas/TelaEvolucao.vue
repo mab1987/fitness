@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { treinos, exercicioPorId } from '../servicos/treinos.js';
+import { treinos, exercicioPorId, comentar, marcarComentariosVistos } from '../servicos/treinos.js';
+import { sessao } from '../servicos/sessao.js';
+import Comentarios from '../componentes/Comentarios.vue';
 import { pontosExercicio, recordes, kg, data, hora } from '../servicos/calculos.js';
 import GraficoLinha from '../componentes/GraficoLinha.vue';
 
@@ -65,7 +67,10 @@ function alternar(id) {
   const s = new Set(abertos.value);
   s.has(id) ? s.delete(id) : s.add(id);
   abertos.value = s;
+  if (s.has(id) && comentariosDe(id).some((c) => !c.visto && c.autor_id !== sessao.perfil?.id)) marcarComentariosVistos().catch(() => {});
 }
+const comentariosDe = (id) => treinos.comentarios.filter((c) => c.sessao_id === id);
+const novosDe = (id) => comentariosDe(id).filter((c) => !c.visto && c.autor_id !== sessao.perfil?.id).length;
 </script>
 
 <template>
@@ -120,11 +125,17 @@ function alternar(id) {
       <div v-for="s in sessoes.slice(0, mostrar)" :key="s.id" class="cartao sessao">
         <button class="cab-sessao" type="button" :aria-expanded="abertos.has(s.id)" @click="alternar(s.id)">
           <span><strong>{{ nomeFicha(s.ficha_id) }}</strong> <span class="mudo">· {{ data(s.inicio) }}, {{ hora(s.inicio) }}</span></span>
-          <span class="mudo">{{ (seriesPorSessao.get(s.id) || []).length }} séries</span>
+          <span class="linha direita">
+            <span v-if="novosDe(s.id)" class="selo">{{ novosDe(s.id) }} comentário(s) novo(s)</span>
+            <span v-else-if="comentariosDe(s.id).length" class="mudo">{{ comentariosDe(s.id).length }} coment.</span>
+            <span class="mudo">{{ (seriesPorSessao.get(s.id) || []).length }} séries</span>
+          </span>
         </button>
         <div v-if="abertos.has(s.id)" class="pilha det">
           <p v-for="d in detalheSessao(s.id)" :key="d.nome" class="linha-ex"><span>{{ d.nome }}</span><span class="mudo">{{ d.texto }}</span></p>
           <p v-if="s.observacao" class="mudo">{{ s.observacao }}</p>
+          <Comentarios v-if="comentariosDe(s.id).length || treinos.personal" :comentarios="comentariosDe(s.id)" :meu-id="sessao.perfil?.id"
+            :enviar="sessao.verComo ? null : (t) => comentar(s.id, t)" :rotulo="treinos.personal ? 'Escrever para ' + treinos.personal.nome : 'Responder'" />
         </div>
       </div>
       <button v-if="sessoes.length > mostrar" class="botao secundario" type="button" @click="mostrar += 30">Mostrar mais</button>
@@ -147,6 +158,7 @@ function alternar(id) {
   background: none; border: none; font: inherit; color: var(--text); padding: 14px 16px; cursor: pointer; min-height: 48px;
 }
 .det { padding: 0 16px 14px; gap: 6px; }
+.direita { gap: 8px; flex-shrink: 0; }
 .linha-ex { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
 .linha-ex .mudo { text-align: right; }
 </style>

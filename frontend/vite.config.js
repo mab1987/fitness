@@ -9,7 +9,7 @@ export default defineConfig({
     vue(),
     VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: 'script', // arquivo externo, compatível com a política de segurança (CSP)
+      injectRegister: false, // o registro fica em src/servicos/atualizar.js (recarrega sozinho quando sai versão nova)
       includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],
       manifest: {
         name: 'Meu treino',
@@ -32,6 +32,8 @@ export default defineConfig({
         navigateFallback: 'index.html',
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
         cleanupOutdatedCaches: true,
+        clientsClaim: true, // versão nova assume as abas abertas na hora
+        skipWaiting: true,
       },
     }),
   ],

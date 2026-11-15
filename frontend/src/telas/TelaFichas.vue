@@ -41,7 +41,7 @@ async function alternar(f) {
     <p v-if="treinos.carregado && !treinos.fichas.length" class="cartao vazio">Nenhuma ficha ainda.</p>
 
     <RouterLink v-for="f in ativas" :key="f.id" class="cartao ficha" :to="'/fichas/' + f.id">
-      <strong>{{ f.nome }}</strong>
+      <span class="linha topo-ficha"><strong>{{ f.nome }}</strong><span v-if="f.prescrita" class="selo">por {{ f.autor_nome || 'seu personal' }}</span></span>
       <span class="mudo">{{ f.itens.length }} {{ f.itens.length === 1 ? 'exercício' : 'exercícios' }}<template v-if="f.itens.length"> · {{ nomes(f) }}</template></span>
     </RouterLink>
 
@@ -49,7 +49,7 @@ async function alternar(f) {
       <h2 id="t-arq" class="rotulo-secao">Arquivadas</h2>
       <div v-for="f in arquivadas" :key="f.id" class="cartao linha arquivada">
         <RouterLink class="cresce" :to="'/fichas/' + f.id"><strong>{{ f.nome }}</strong></RouterLink>
-        <button class="botao secundario pequeno" type="button" :disabled="noLimite || !!sessao.verComo" @click="alternar(f)">Reativar</button>
+        <button class="botao secundario pequeno" type="button" :disabled="noLimite || !!sessao.verComo || f.pode_editar === false" @click="alternar(f)">Reativar</button>
       </div>
     </section>
   </div>
@@ -62,4 +62,5 @@ async function alternar(f) {
 .ficha:hover { border-color: var(--accent); }
 .arquivada a { color: var(--text); text-decoration: none; }
 .cresce { flex: 1; min-width: 0; }
+.topo-ficha { justify-content: space-between; gap: 8px; }
 </style>

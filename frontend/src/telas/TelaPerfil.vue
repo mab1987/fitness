@@ -6,6 +6,7 @@ import { sessao, definirPerfil, encerrarLocal, planoEfetivo, textoPlano } from '
 import { aparencia, PALETAS, TEMAS, modoEfetivo } from '../servicos/tema.js';
 import { pedidoInstalacao, instalado, instalar, ehIos } from '../servicos/instalar.js';
 import Aviso from '../componentes/Aviso.vue';
+import CartaoVinculos from '../componentes/CartaoVinculos.vue';
 import { treinos, pendentes, enviarFila, limparDoAparelho } from '../servicos/treinos.js';
 
 const router = useRouter();
@@ -89,6 +90,8 @@ async function sair(mesmoAssim = false) {
         <dt>Plano</dt><dd>{{ textoPlano(planoEfetivo) }}</dd>
       </dl>
     </section>
+
+    <CartaoVinculos />
 
     <section class="cartao pilha" aria-labelledby="t-aparencia">
       <h2 id="t-aparencia">Aparência</h2>

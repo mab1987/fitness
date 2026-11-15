@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { sessao, planoEfetivo, textoPlano } from '../servicos/sessao.js';
-import { treinos, iniciarTreino, exercicioPorId } from '../servicos/treinos.js';
+import { treinos, iniciarTreino, exercicioPorId, comentariosNovos } from '../servicos/treinos.js';
 import { proximaFicha, data } from '../servicos/calculos.js';
 import Aviso from '../componentes/Aviso.vue';
 
@@ -42,6 +42,11 @@ async function comecar(f) {
       <h1>Olá, {{ primeiroNome }}</h1>
     </div>
     <Aviso :texto="erro || treinos.erro" />
+
+    <RouterLink v-if="comentariosNovos" class="cartao linha aviso-com" to="/evolucao">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" /></svg>
+      <span><strong>{{ comentariosNovos }} comentário(s) novo(s)</strong> sobre seus treinos. Veja em Evolução.</span>
+    </RouterLink>
 
     <section v-if="treinos.atual" class="cartao destaque pilha" aria-labelledby="t-and">
       <h2 id="t-and">Treino em andamento</h2>
@@ -83,6 +88,8 @@ async function comecar(f) {
 
 <style scoped>
 .destaque { border: 2px solid var(--accent); }
+.aviso-com { color: var(--text); text-decoration: none; background: var(--accent-soft); border-color: transparent; }
+.aviso-com svg { color: var(--accent-ink); flex-shrink: 0; }
 .grande { font-size: 24px; }
 .centro { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 .grade-fichas { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
