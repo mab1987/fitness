@@ -9,6 +9,8 @@ import Aviso from '../componentes/Aviso.vue';
 import EditorFicha from '../componentes/EditorFicha.vue';
 import Comentarios from '../componentes/Comentarios.vue';
 import GraficoLinha from '../componentes/GraficoLinha.vue';
+import PainelMedidas from '../componentes/PainelMedidas.vue';
+import BotoesExportar from '../componentes/BotoesExportar.vue';
 
 const props = defineProps({ id: { type: String, required: true } });
 const router = useRouter();
@@ -21,12 +23,38 @@ const abertos = ref(new Set());
 const exercicioId = ref('');
 const confirmarFim = ref(false);
 const meuId = computed(() => sessao.perfil?.id);
+const programas = ref([]);
+const programaId = ref('');
+const ok = ref('');
+const livres = ref(0);
+async function carregarExtras() {
+  try {
+    const [meus, pub, lic] = await Promise.all([api.meusProgramas(), api.programas(), api.licencasPersonal()]);
+    const m = new Map();
+    [...meus.filter((p) => p.autor_id === meuId.value), ...pub.filter((p) => !p.bloqueado)].forEach((p) => m.set(p.id, p));
+    programas.value = [...m.values()];
+    livres.value = lic.saldo.filter((x) => !x.atribuida_a).length;
+  } catch { /* opcional */ }
+}
+async function aplicarPrograma() {
+  erro.value = ''; ok.value = '';
+  try {
+    const r = await api.usarPrograma({ id: programaId.value, aluno_id: props.id });
+    ok.value = `${r.fichas} ficha(s) aplicadas${r.arquivadas ? `, ${r.arquivadas} arquivada(s) pelo limite do plano grátis` : ''}.`;
+    programaId.value = '';
+    await carregar();
+  } catch (e) { erro.value = e.message; }
+}
+async function darPremium() {
+  erro.value = ''; ok.value = '';
+  try { await api.atribuirLicenca({ aluno_id: props.id }); ok.value = 'Licença premium dada.'; await carregar(); await carregarExtras(); } catch (e) { erro.value = e.message; }
+}
 
 async function carregar() {
   erro.value = '';
   try { d.value = await api.lerAluno(props.id); } catch (e) { erro.value = e.message; }
 }
-onMounted(carregar);
+onMounted(() => { carregar(); carregarExtras(); });
 
 const exPorId = computed(() => new Map((d.value?.exercicios || []).map((e) => [e.id, e])));
 const nomeEx = (id) => exPorId.value.get(id)?.nome || 'Exercício';
@@ -121,15 +149,18 @@ const valorAjuste = (a, v) => (a.campo === 'carga_atual_kg' && v !== '' ? kg(Num
       <div class="cabecalho-tela">
         <div>
           <h1>{{ d.aluno.nome }}</h1>
-          <p class="mudo">{{ d.aluno.email }} · {{ d.aluno.plano.tipo === 'premium' ? 'Premium' : 'Plano grátis (até 3 fichas ativas)' }}</p>
+          <p class="mudo">{{ d.aluno.email }} · {{ d.aluno.plano.tipo === 'premium' ? 'Premium' + (d.aluno.plano.fim ? ' até ' + data(d.aluno.plano.fim) : '') : 'Plano grátis (até 3 fichas ativas)' }}</p>
         </div>
+        <button v-if="d.aluno.plano.tipo !== 'premium' && livres" class="botao secundario" type="button" :disabled="!!sessao.verComo" @click="darPremium">Dar premium ({{ livres }} livre{{ livres > 1 ? 's' : '' }})</button>
       </div>
 
+      <Aviso tipo="sucesso" :texto="ok" />
       <div class="abas" role="tablist">
         <button role="tab" type="button" :aria-selected="aba === 'treinos'" @click="aba = 'treinos'">Treinos <span v-if="comentariosNovos" class="selo">{{ comentariosNovos }}</span></button>
         <button role="tab" type="button" :aria-selected="aba === 'fichas'" @click="aba = 'fichas'">Fichas</button>
         <button role="tab" type="button" :aria-selected="aba === 'ajustes'" @click="aba = 'ajustes'">Ajustes <span v-if="ajustesNovos" class="selo">{{ ajustesNovos }}</span></button>
         <button role="tab" type="button" :aria-selected="aba === 'evolucao'" @click="aba = 'evolucao'">Evolução</button>
+        <button role="tab" type="button" :aria-selected="aba === 'medidas'" @click="aba = 'medidas'">Medidas</button>
       </div>
 
       <!-- Treinos -->
@@ -159,6 +190,13 @@ const valorAjuste = (a, v) => (a.campo === 'carga_atual_kg' && v !== '' ? kg(Num
           <div class="linha" style="justify-content: space-between; flex-wrap: wrap">
             <p class="mudo">{{ d.fichas.filter((f) => f.ativa).length }} ativa(s)<template v-if="d.limites.fichas_ativas !== null"> de {{ d.limites.fichas_ativas }} no plano grátis do aluno</template></p>
             <button class="botao" type="button" :disabled="!!sessao.verComo" @click="novaFicha">Nova ficha</button>
+          </div>
+          <div v-if="programas.length" class="linha aplicar">
+            <div class="campo cresce">
+              <label for="prog-al">Aplicar programa pronto</label>
+              <select id="prog-al" v-model="programaId"><option value="">Escolha…</option><option v-for="p in programas" :key="p.id" :value="p.id">{{ p.nome }} ({{ p.fichas.length }} fichas)</option></select>
+            </div>
+            <button class="botao secundario" type="button" :disabled="!programaId || !!sessao.verComo" @click="aplicarPrograma">Aplicar</button>
           </div>
           <button v-for="f in d.fichas" :key="f.id" class="cartao ficha" type="button" @click="fichaAberta = f">
             <span class="linha" style="justify-content: space-between"><strong>{{ f.nome }}</strong>
@@ -217,6 +255,12 @@ const valorAjuste = (a, v) => (a.campo === 'carga_atual_kg' && v !== '' ? kg(Num
         </div>
       </section>
 
+      <section v-if="aba === 'medidas'" class="pilha" role="tabpanel">
+        <PainelMedidas :aluno-id="id" :premium="d.aluno.plano.tipo === 'premium'" />
+      </section>
+
+      <div class="cartao"><BotoesExportar :aluno-id="id" /></div>
+
       <div class="fim-vinculo">
         <button v-if="!confirmarFim" class="botao texto pequeno" type="button" :disabled="!!sessao.verComo" @click="confirmarFim = true">Encerrar acompanhamento</button>
         <div v-else class="linha" role="alert" style="flex-wrap: wrap">
@@ -252,5 +296,7 @@ th { color: var(--muted); font-weight: 600; }
 .recorde { display: flex; flex-direction: column; gap: 2px; padding: 12px; }
 .recorde strong { font-size: 18px; }
 .pequena { font-size: 12px; }
+.aplicar { align-items: flex-end; flex-wrap: wrap; }
+.cresce { flex: 1; min-width: 200px; }
 .fim-vinculo { padding-top: 16px; border-top: 1px solid var(--line); }
 </style>

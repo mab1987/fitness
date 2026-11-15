@@ -140,9 +140,20 @@ function planoAtual_(u) {
   var semPrazo = validas.filter(function (l) { return !l.fim; })[0];
   if (semPrazo) return { tipo: 'premium', origem: semPrazo.origem, fim: null, dias_restantes: null };
   var maior = validas.sort(function (a, b) { return a.fim < b.fim ? 1 : -1; })[0];
+  // Compras seguidas começam quando a anterior acaba: segue a corrente para achar o fim real.
+  var fim = maior.fim;
+  var futuras = buscar_('licencas', { usuario_id: u.id }).filter(function (l) { return l.inicio > agora; });
+  var mudou = true;
+  while (mudou) {
+    mudou = false;
+    futuras.forEach(function (l) {
+      if (!l.fim) return;
+      if (l.inicio <= fim && l.fim > fim) { fim = l.fim; mudou = true; }
+    });
+  }
   return {
-    tipo: 'premium', origem: maior.origem, fim: maior.fim,
-    dias_restantes: Math.ceil((new Date(maior.fim).getTime() - Date.now()) / 864e5)
+    tipo: 'premium', origem: maior.origem, fim: fim,
+    dias_restantes: Math.ceil((new Date(fim).getTime() - Date.now()) / 864e5)
   };
 }
 

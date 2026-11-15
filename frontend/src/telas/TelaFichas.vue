@@ -31,17 +31,21 @@ async function alternar(f) {
           {{ ativas.length }} ativa(s)<template v-if="limite !== null"> de {{ limite }} no plano grátis</template>
         </p>
       </div>
-      <RouterLink v-if="!noLimite && !sessao.verComo" class="botao centro" to="/fichas/nova">Nova ficha</RouterLink>
+      <span class="linha" style="flex-wrap: wrap">
+        <RouterLink class="botao secundario centro" to="/programas">Programas prontos</RouterLink>
+        <RouterLink v-if="!noLimite && !sessao.verComo" class="botao centro" to="/fichas/nova">Nova ficha</RouterLink>
+      </span>
     </div>
     <Aviso :texto="erro" />
     <p v-if="noLimite" class="cartao mudo">
       Você chegou ao limite de {{ limite }} fichas ativas do plano grátis. Arquive uma para criar outra, ou assine o premium para ter fichas sem limite.
     </p>
 
-    <p v-if="treinos.carregado && !treinos.fichas.length" class="cartao vazio">Nenhuma ficha ainda.</p>
+    <p v-if="ativas.some((f) => f.bloqueada)" class="cartao">Seu premium acabou e algumas fichas passaram do limite de 3 do plano grátis: elas ficam <strong>bloqueadas</strong> (dá para ver e arquivar). Arquive as que não usa ou <RouterLink to="/premium">renove o premium</RouterLink>.</p>
+    <p v-if="treinos.carregado && !treinos.fichas.length" class="cartao vazio">Nenhuma ficha ainda. Monte uma ou comece por um programa pronto.</p>
 
     <RouterLink v-for="f in ativas" :key="f.id" class="cartao ficha" :to="'/fichas/' + f.id">
-      <span class="linha topo-ficha"><strong>{{ f.nome }}</strong><span v-if="f.prescrita" class="selo">por {{ f.autor_nome || 'seu personal' }}</span></span>
+      <span class="linha topo-ficha"><strong>{{ f.nome }}</strong><span class="linha" style="gap: 6px"><span v-if="f.bloqueada" class="selo neutro">bloqueada</span><span v-if="f.prescrita" class="selo">por {{ f.autor_nome || 'seu personal' }}</span></span></span>
       <span class="mudo">{{ f.itens.length }} {{ f.itens.length === 1 ? 'exercício' : 'exercícios' }}<template v-if="f.itens.length"> · {{ nomes(f) }}</template></span>
     </RouterLink>
 
@@ -63,4 +67,5 @@ async function alternar(f) {
 .arquivada a { color: var(--text); text-decoration: none; }
 .cresce { flex: 1; min-width: 0; }
 .topo-ficha { justify-content: space-between; gap: 8px; }
+.selo.neutro { background: var(--track); color: var(--text); }
 </style>

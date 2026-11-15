@@ -2,7 +2,9 @@
 
 App de acompanhamento de treinos de musculação (nome provisório). Aluno usa no celular como PWA instalável; personal, gerente e administrador usam no computador ou tablet.
 
-**Estado atual: Fase 2 (personal e grupos), versão 0.3.0.** Convite por código ou link, vínculo personal–aluno com aceite do aluno, fichas prescritas pelo personal, comentários nos treinos, acompanhamento dos ajustes de carga, grupos com gerente (só resumo de frequência), administração de usuários, papéis e catálogo com propostas dos personais, e atualização automática do app.
+**Estado atual: Fase 3 (premium e orientação), versão 0.4.0.** Compra do premium por Pix copia e cola com QR Code e liberação pelo administrador, cortesias, lotes e saldo de licenças do personal, aviso de vencimento e fichas bloqueadas ao voltar ao grátis, sugestão de carga (regra básica e com esforço/RPE), programas prontos, medidas corporais, exportação para planilha, treinos por semana e volume por grupo muscular.
+
+**Fase 2 (personal e grupos):** Convite por código ou link, vínculo personal–aluno com aceite do aluno, fichas prescritas pelo personal, comentários nos treinos, acompanhamento dos ajustes de carga, grupos com gerente (só resumo de frequência), administração de usuários, papéis e catálogo com propostas dos personais, e atualização automática do app.
 
 **Fase 1 (MVP do aluno):** Fichas com catálogo de exercícios e vídeos do YouTube, registro de treino que funciona sem internet (envia depois), descanso com contagem e vibração, progressão de carga e repetições pelo próprio aluno, evolução com gráfico, recordes e histórico, limites do plano grátis conferidos no servidor e importação da planilha antiga.
 
@@ -26,6 +28,8 @@ backend/            Servidor no Google Apps Script (a planilha é o banco de dad
   09_Importacao.gs  Importação da planilha antiga (com prévia)
   10_Pessoas.gs     Convites, vínculo personal–aluno, acompanhamento e comentários
   11_Grupos.gs      Grupos com gerente e administração (usuários, papéis, catálogo)
+  12_Premium.gs     Preços, Pix copia e cola (BR Code), pedidos, licenças, cortesias e lotes
+  13_Programas.gs   Programas prontos, medidas corporais e exportação
   dist/Codigo.gs    Todos os arquivos acima em um só, para colar no editor
 frontend/           App em Vue 3 + Vite + vite-plugin-pwa
   src/servicos/dados.js     Única porta entre as telas e o servidor
@@ -44,9 +48,10 @@ ferramentas/        Script que gera backend/dist/Codigo.gs
 node testes/backend.test.js
 node testes/treinos.test.js
 node testes/pessoas.test.js
+node testes/premium.test.js
 
 # teste de ponta a ponta (Playwright): build com VITE_API_URL=/api em frontend/dist-teste,
-# depois: node testes/servidor-teste.js  e  python3 testes/e2e/fase1.py  (e fase2.py)
+# depois: node testes/servidor-teste.js  e  python3 testes/e2e/fase1.py  (e fase2.py, fase3.py)
 
 # depois de mudar algo em backend/, gere de novo o arquivo único
 node ferramentas/juntar-backend.js

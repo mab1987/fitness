@@ -55,6 +55,7 @@ with sync_playwright() as pw:
     foto(p, '03-inicio-com-dados')
     proxima = p.locator('#t-prox').inner_text()
     p.get_by_role('button', name=f'Começar {proxima}').click()
+    p.locator('section.atual').wait_for()
 
     # treino: sobe a carga da 1ª série, marca as séries do 1º exercício
     expect(p.get_by_text('Série 1', exact=True)).to_be_visible()

@@ -11,14 +11,16 @@ const erro = ref('');
 const papelVerComo = ref('aluno_gratis');
 const adminReal = computed(() => ehAdmin.value && !sessao.verComo);
 const tem = (p) => papeisEfetivos.value.includes(p);
-const avisos = ref({ alunos: 0, propostas: 0 });
+const avisos = ref({ alunos: 0, propostas: 0, pedidos: 0 });
 
 const secoes = computed(() => {
   const l = [];
   if (tem('personal') || adminReal.value) l.push({ para: '/painel/alunos', nome: 'Meus alunos', texto: 'Convide alunos, monte fichas, veja treinos e ajustes de carga, comente.', aviso: avisos.value.alunos, avisoTexto: 'novidade(s)' });
   if (tem('gerente') || adminReal.value) l.push({ para: '/painel/grupos', nome: 'Grupos', texto: adminReal.value ? 'Crie grupos, defina gerentes e acompanhe a frequência.' : 'Convide membros e acompanhe a frequência do grupo.' });
   if (tem('personal') || adminReal.value) l.push({ para: '/painel/catalogo', nome: adminReal.value ? 'Catálogo de exercícios' : 'Meus exercícios', texto: adminReal.value ? 'Edite o catálogo geral e decida as propostas dos personais.' : 'Proponha seus exercícios para o catálogo geral.', aviso: avisos.value.propostas, avisoTexto: 'proposta(s)' });
+  if (tem('personal') || tem('gerente') || adminReal.value) l.push({ para: '/painel/programas', nome: 'Programas prontos', texto: adminReal.value ? 'Publique programas para todos (grátis ou premium).' : tem('gerente') ? 'Publique programas para o seu grupo.' : 'Monte programas e aplique nos seus alunos.' });
   if (adminReal.value) {
+    l.push({ para: '/painel/vendas', nome: 'Premium e vendas', texto: 'Libere pedidos pagos, dê cortesias e lotes, ajuste preços e a chave Pix.', aviso: avisos.value.pedidos, avisoTexto: 'pedido(s) para conferir' });
     l.push({ para: '/painel/usuarios', nome: 'Usuários', texto: 'Ative ou desative contas e os papéis de personal e de administrador.' });
     l.push({ para: '/painel/importar', nome: 'Importar planilha antiga', texto: 'Traz fichas e histórico do app antigo para uma conta.' });
   }
@@ -31,7 +33,10 @@ onMounted(async () => {
       const alunos = await api.listarAlunos();
       avisos.value.alunos = alunos.reduce((t, a) => t + a.ajustes_novos + a.comentarios_novos, 0);
     }
-    if (adminReal.value) avisos.value.propostas = (await api.catalogo()).filter((e) => e.status === 'proposto').length;
+    if (adminReal.value) {
+      avisos.value.propostas = (await api.catalogo()).filter((e) => e.status === 'proposto').length;
+      avisos.value.pedidos = (await api.pedidosAdmin()).filter((p) => p.status === 'informado' || p.status === 'aguardando').length;
+    }
   } catch { /* os números são só um aviso */ }
 });
 

@@ -32,7 +32,7 @@ const confirmarExclusao = ref(false);
 watch(() => props.ficha, (f) => {
   if (f.id !== dados.id) { msg.erro = ''; msg.ok = ''; } // outra ficha: limpa avisos; a mesma recarregada após salvar: mantém
   Object.assign(dados, { id: f.id, nome: f.nome || '', ordem: f.ordem || 0, ativa: f.ativa !== false });
-  itens.value = (f.itens || []).map((i) => ({ ...i, metodo: i.metodo || '' }));
+  itens.value = (f.itens || []).map((i) => ({ ...i, metodo: i.metodo || '', sugestao: i.sugestao || '' }));
 }, { immediate: true });
 
 const porId = computed(() => new Map(props.exercicios.map((e) => [e.id, e])));
@@ -48,7 +48,7 @@ const existeIgual = computed(() => props.exercicios.some((e) => normal(e.nome) =
 function adicionar(ex) {
   itens.value.push({
     id: novoId(), exercicio_id: ex.id, series: 3, reps_prescritas: '12', carga_prescrita_kg: null,
-    carga_atual_kg: null, reps_atuais: '', descanso_seg: 60, metodo: '', observacoes: '',
+    carga_atual_kg: null, reps_atuais: '', descanso_seg: 60, metodo: '', observacoes: '', sugestao: '', incremento_kg: null,
   });
   busca.value = '';
 }
@@ -130,6 +130,11 @@ async function apagar() {
           <div class="campo"><label :for="'m' + it.id">Método</label>
             <select :id="'m' + it.id" v-model="it.metodo"><option v-for="[v, n] in METODOS" :key="v" :value="v">{{ n }}</option></select>
           </div>
+          <div class="campo"><label :for="'sg' + it.id">Sugestão de carga</label>
+            <select :id="'sg' + it.id" v-model="it.sugestao"><option value="">Ligada</option><option value="desligada">Desligada</option></select>
+          </div>
+          <div class="campo"><label :for="'in' + it.id">Incremento (kg)</label><input :id="'in' + it.id" inputmode="decimal" maxlength="5" placeholder="padrão" :value="it.incremento_kg == null ? '' : kg(it.incremento_kg)" @change="numero(it, 'incremento_kg', $event.target.value)" /></div>
+          <div class="campo"><label :for="'am' + it.id">Aumento máx. (kg)</label><input :id="'am' + it.id" inputmode="decimal" maxlength="6" placeholder="sem limite" :value="it.aumento_max_kg == null ? '' : kg(it.aumento_max_kg)" @change="numero(it, 'aumento_max_kg', $event.target.value)" /></div>
         </fieldset>
         <p v-if="it.reps_atuais" class="mudo">Meta de repetições atual (ajustada pelo aluno): {{ it.reps_atuais }}</p>
         <div class="campo"><label :for="'o' + it.id">Observações</label><input :id="'o' + it.id" v-model="it.observacoes" maxlength="500" :disabled="!podeEditar" /></div>

@@ -62,7 +62,36 @@ function rotas_() {
   'admin.usuario.atualizar': { acesso: 'admin', escrita: true, fn: atualizarUsuarioAdmin_ },
   'admin.catalogo':        { acesso: 'admin', fn: catalogoAdmin_ },
   'admin.exercicio.atualizar': { acesso: 'admin', escrita: true, fn: atualizarExercicioAdmin_ },
-  'admin.exercicio.decidir': { acesso: 'admin', escrita: true, fn: decidirExercicio_ }
+  'admin.exercicio.decidir': { acesso: 'admin', escrita: true, fn: decidirExercicio_ },
+  // Fase 3: premium
+  'precos.listar':         { acesso: 'logado', fn: listarPrecos_ },
+  'licencas.minhas':       { acesso: 'logado', fn: minhasLicencas_ },
+  'pedidos.criar':         { acesso: 'logado', escrita: true, fn: criarPedido_ },
+  'pedidos.paguei':        { acesso: 'logado', escrita: true, fn: informarPagamento_ },
+  'pedidos.cancelar':      { acesso: 'logado', escrita: true, fn: cancelarMeuPedido_ },
+  'personal.licencas':     { acesso: 'logado', fn: minhasLicencasPersonal_ },
+  'personal.atribuir':     { acesso: 'logado', escrita: true, fn: atribuirLicenca_ },
+  'admin.config':          { acesso: 'admin', fn: lerConfigAdmin_ },
+  'admin.config.salvar':   { acesso: 'admin', escrita: true, fn: salvarConfigAdmin_ },
+  'admin.precos':          { acesso: 'admin', fn: precosAdmin_ },
+  'admin.precos.salvar':   { acesso: 'admin', escrita: true, fn: salvarPrecosAdmin_ },
+  'admin.pedidos':         { acesso: 'admin', fn: listarPedidosAdmin_ },
+  'admin.pedido.liberar':  { acesso: 'admin', escrita: true, fn: liberarPedido_ },
+  'admin.pedido.cancelar': { acesso: 'admin', escrita: true, fn: cancelarPedidoAdmin_ },
+  'admin.cortesia':        { acesso: 'admin', escrita: true, fn: cortesia_ },
+  'admin.licenca.revogar': { acesso: 'admin', escrita: true, fn: revogarLicenca_ },
+  'admin.licencas.usuario':{ acesso: 'admin', fn: licencasDeUsuarioAdmin_ },
+  'admin.lote':            { acesso: 'admin', escrita: true, fn: loteParaPersonal_ },
+  // programas, medidas, exportação
+  'programas.listar':      { acesso: 'logado', fn: listarProgramas_ },
+  'programas.meus':        { acesso: 'logado', fn: programasAutor_ },
+  'programas.salvar':      { acesso: 'logado', escrita: true, fn: salvarPrograma_ },
+  'programas.excluir':     { acesso: 'logado', escrita: true, fn: excluirPrograma_ },
+  'programas.usar':        { acesso: 'logado', escrita: true, fn: usarPrograma_ },
+  'medidas.listar':        { acesso: 'logado', fn: listarMedidas_ },
+  'medidas.salvar':        { acesso: 'logado', escrita: true, fn: salvarMedida_ },
+  'medidas.excluir':       { acesso: 'logado', escrita: true, fn: excluirMedida_ },
+  'exportar':              { acesso: 'logado', fn: exportarDados_ }
   };
 }
 

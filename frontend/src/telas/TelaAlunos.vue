@@ -9,11 +9,19 @@ const alunos = ref([]);
 const convites = ref([]);
 const erro = ref('');
 const carregado = ref(false);
+const saldo = ref([]);
+const ok = ref('');
+const livres = () => saldo.value.filter((x) => !x.atribuida_a);
+const DESCR = (r) => (r === 'sem_prazo' ? 'sem prazo' : r.startsWith('periodo:') ? r.slice(8) : r.startsWith('dias:') ? r.slice(5) + ' dias' : 'até ' + data(r.slice(4)));
+async function darPremium(a) {
+  erro.value = ''; ok.value = '';
+  try { await api.atribuirLicenca({ aluno_id: a.id }); ok.value = `${a.nome} agora é premium.`; await carregar(); } catch (e) { erro.value = e.message; }
+}
 
 async function carregar() {
   erro.value = '';
   try {
-    [alunos.value, convites.value] = await Promise.all([api.listarAlunos(), api.listarConvites()]);
+    [alunos.value, convites.value, { saldo: saldo.value }] = await Promise.all([api.listarAlunos(), api.listarConvites(), api.licencasPersonal()]);
     convites.value = convites.value.filter((c) => c.tipo === 'personal');
   } catch (e) { erro.value = e.message; }
   carregado.value = true;
@@ -32,6 +40,7 @@ function frequencia(a) {
     <RouterLink class="voltar" to="/painel">← Painel</RouterLink>
     <h1>Meus alunos</h1>
     <Aviso :texto="erro" />
+    <Aviso tipo="sucesso" :texto="ok" />
 
     <p v-if="carregado && !alunos.length" class="cartao vazio">Nenhum aluno ainda. Gere um convite abaixo e envie para o aluno.</p>
     <div v-if="alunos.length" class="cartao rolagem">
@@ -40,7 +49,8 @@ function frequencia(a) {
         <tbody>
           <tr v-for="a in alunos" :key="a.id">
             <td><RouterLink :to="'/painel/alunos/' + a.id"><strong>{{ a.nome }}</strong></RouterLink><br /><span class="mudo">{{ a.email }}</span></td>
-            <td>{{ a.plano === 'premium' ? 'Premium' : 'Grátis' }}</td>
+            <td>{{ a.plano === 'premium' ? 'Premium' : 'Grátis' }}
+              <button v-if="a.plano !== 'premium' && livres().length" class="botao texto pequeno" type="button" @click="darPremium(a)">Dar premium</button></td>
             <td>{{ frequencia(a) }}<br /><span class="mudo">aluno desde {{ data(a.desde) }}</span></td>
             <td>{{ a.treinos_7d }}</td>
             <td>{{ a.treinos_30d }}</td>
@@ -53,6 +63,18 @@ function frequencia(a) {
         </tbody>
       </table>
     </div>
+
+    <section class="cartao pilha" aria-labelledby="t-lic">
+      <div class="linha" style="justify-content: space-between; flex-wrap: wrap">
+        <h2 id="t-lic">Licenças premium</h2>
+        <RouterLink class="botao secundario pequeno centro" to="/premium">Comprar licenças</RouterLink>
+      </div>
+      <p><strong>{{ livres().length }}</strong> livre(s) para dar aos alunos<template v-if="livres().length"> ({{ [...new Set(livres().map((x) => DESCR(x.periodo_ou_fim)))].join(', ') }})</template>.</p>
+      <div v-for="l in saldo.filter((x) => x.atribuida_a)" :key="l.id" class="linha uso">
+        <span class="cresce">{{ l.aluno_nome }}</span>
+        <span class="mudo">{{ l.revogada ? 'revogada' : l.fim ? 'até ' + data(l.fim) : 'sem prazo' }}</span>
+      </div>
+    </section>
 
     <Convites :pedido="{ tipo: 'personal' }" :ativos="convites" titulo="Convidar aluno"
       explicacao="O aluno abre o link (ou digita o código em Perfil) e aceita. A partir daí você vê os treinos dele e pode montar fichas."
@@ -67,4 +89,7 @@ table { border-collapse: collapse; width: 100%; min-width: 680px; font-size: 14p
 th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { color: var(--muted); font-weight: 600; }
 td .selo { margin: 0 4px 4px 0; }
+.uso { font-size: 14px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+.cresce { flex: 1; min-width: 0; }
+.centro { display: inline-flex; align-items: center; text-decoration: none; }
 </style>
