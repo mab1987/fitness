@@ -30,7 +30,7 @@ p { margin: 0; }
 
 .campo { display: flex; flex-direction: column; gap: 6px; }
 .campo label { font-size: 14px; font-weight: 600; }
-.campo input {
+.campo input, .campo select, .entrada {
   height: 48px;
   padding: 0 14px;
   border-radius: 12px;
@@ -39,7 +39,16 @@ p { margin: 0; }
   color: var(--text);
   font: inherit;
 }
-.campo input:focus { border-color: var(--accent); }
+.campo input:focus, .campo select:focus, .campo textarea:focus, .entrada:focus { border-color: var(--accent); }
+.campo textarea {
+  min-height: 72px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--text); font: inherit; resize: vertical;
+}
+.grade-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+.botao.pequeno { height: 40px; padding: 0 12px; font-size: 14px; border-radius: 12px; }
+.botao.perigo { background: transparent; color: var(--perigo); border: 1px solid var(--line); font-weight: 600; }
+.vazio { text-align: center; padding: 24px 16px; color: var(--muted); }
+.cabecalho-tela { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .campo .dica { font-size: 13px; color: var(--muted); }
 .campo .erro-campo { font-size: 13px; color: var(--perigo); }
 

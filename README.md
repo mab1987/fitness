@@ -2,7 +2,9 @@
 
 App de acompanhamento de treinos de musculação (nome provisório). Aluno usa no celular como PWA instalável; personal, gerente e administrador usam no computador ou tablet.
 
-**Estado atual: Fase 0 (fundação).** Cadastro com CPF único, login com e-mail ou usuário e senha, recuperação de senha por e-mail, perfil com tema claro/noturno/automático e 8 paletas de cor, painel do administrador (lista de usuários, ativar personal, "ver como" somente leitura) e a planilha com as 19 tabelas do modelo de dados.
+**Estado atual: Fase 1 (MVP do aluno), versão 0.2.0.** Fichas com catálogo de exercícios e vídeos do YouTube, registro de treino que funciona sem internet (envia depois), descanso com contagem e vibração, progressão de carga e repetições pelo próprio aluno, evolução com gráfico, recordes e histórico, limites do plano grátis conferidos no servidor e importação da planilha antiga.
+
+**Fase 0 (fundação):** Cadastro com CPF único, login com e-mail ou usuário e senha, recuperação de senha por e-mail, perfil com tema claro/noturno/automático e 8 paletas de cor, painel do administrador (lista de usuários, ativar personal, "ver como" somente leitura) e a planilha com as 19 tabelas do modelo de dados.
 
 Como colocar no ar: [docs/INSTALACAO.md](docs/INSTALACAO.md).
 
@@ -18,9 +20,14 @@ backend/            Servidor no Google Apps Script (a planilha é o banco de dad
   05_Contas.gs      Cadastro, login, sessão, perfil, plano e administração
   06_Rotas.gs       Rota única da API e checagem de permissões
   07_Instalacao.gs  setup() cria as abas; testarSenha() mede o bcrypt
+  08_Treinos.gs     Exercícios, fichas, sincronização do treino e histórico
+  09_Importacao.gs  Importação da planilha antiga (com prévia)
   dist/Codigo.gs    Todos os arquivos acima em um só, para colar no editor
 frontend/           App em Vue 3 + Vite + vite-plugin-pwa
-  src/servicos/dados.js   Única porta entre as telas e o servidor
+  src/servicos/dados.js     Única porta entre as telas e o servidor
+  src/servicos/treinos.js   Estado do treino, fila para enviar sem internet
+  src/servicos/local.js     Armazenamento no aparelho (IndexedDB)
+  src/servicos/calculos.js  Contas do treino (séries, progressão, 1RM, gráfico)
 testes/             Simulador do Apps Script e testes do backend
 ferramentas/        Script que gera backend/dist/Codigo.gs
 .github/workflows/  Testa e publica no GitHub Pages a cada envio
@@ -31,6 +38,10 @@ ferramentas/        Script que gera backend/dist/Codigo.gs
 ```bash
 # testes do backend (simulador do Apps Script, sem precisar do Google)
 node testes/backend.test.js
+node testes/treinos.test.js
+
+# teste de ponta a ponta (Playwright): build com VITE_API_URL=/api em frontend/dist-teste,
+# depois: node testes/servidor-teste.js  e  python3 testes/e2e/fase1.py
 
 # depois de mudar algo em backend/, gere de novo o arquivo único
 node ferramentas/juntar-backend.js
