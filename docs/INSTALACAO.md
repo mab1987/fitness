@@ -1,4 +1,6 @@
-# Meu treino — como colocar a Fase 0 no ar
+# Meu treino — como colocar no ar
+
+> **Já instalou a Fase 0?** Vá direto para a [Parte 4 — Atualizar para a Fase 1](#parte-4--atualizar-para-a-fase-1) e depois para a [Parte 5 — Importar a planilha antiga](#parte-5--importar-a-planilha-antiga).
 
 São três partes: a planilha com o servidor (Apps Script), o site (GitHub Pages) e o teste final. Leva cerca de 30 minutos na primeira vez.
 
@@ -54,6 +56,42 @@ A Fase 0 está concluída quando os quatro itens abaixo funcionarem:
    - Entre com a mesma conta.
 3. **Ida e volta da planilha:** no celular, em **Perfil > Aparência**, mude o tema e a cor. Abra a planilha, aba `usuarios`: as colunas `tema` e `paleta` mudaram. Abra o app no computador: a nova aparência aparece lá também.
 4. **Ver como:** no computador, em **Painel**, escolha **Aluno grátis > Ver como**. Aparece a faixa "Vendo como Aluno grátis", o Painel some do menu e nada pode ser alterado. **Sair do modo** volta ao normal.
+
+## Parte 4 — Atualizar para a Fase 1
+
+A URL do servidor não muda, e nada do que já está na planilha é apagado.
+
+1. **Servidor.** Abra a planilha > **Extensões > Apps Script**. Apague o conteúdo de `Código.gs` e cole **todo** o novo `backend/dist/Codigo.gs`. Salve.
+2. Escolha a função **setup** e clique em **Executar**. Ela acrescenta a coluna `global` na aba `exercicios` e confere as outras. Deve aparecer **"Pronto: 19 abas conferidas"**.
+3. **Implantar > Gerenciar implantações** > lápis (editar) > **Versão: Nova versão** > Descrição `Fase 1` > **Implantar**.
+4. Teste: abra a URL `/exec` no navegador. Deve aparecer `"versao":"0.2.0"`.
+5. **Site.** Envie os arquivos do pacote novo para o repositório (**Add file > Upload files**, substituindo os antigos). Inclua as pastas `frontend`, `backend`, `testes`, `docs` e `.github`. O Actions testa e publica sozinho em 2 a 3 minutos.
+6. No celular, feche e abra o app instalado. Se a tela antiga continuar, puxe para atualizar ou feche o app duas vezes: a versão nova é baixada em segundo plano.
+
+## Parte 5 — Importar a planilha antiga
+
+1. Envie o arquivo .xlsx do app antigo para o seu Google Drive (pode ser em qualquer pasta). Precisa ser **a mesma conta Google** que é dona do servidor.
+2. Abra o arquivo no Drive e use **Arquivo > Salvar como Planilhas Google**. Abre uma planilha nova: copie o endereço dela da barra do navegador.
+3. No app, no computador: **Painel > Importar planilha antiga**.
+   - Cole o endereço.
+   - O e-mail já vem com o seu (a conta que recebe os dados).
+   - Se quiser juntar ou corrigir nomes, use **Renomear**, um por linha. Exemplo: `Panturrilha Sentadilha = Panturrilha Sentada`.
+4. Clique em **Ver prévia** e confira:
+   - período (19/jan a 20/out), 128 treinos e 2.310 séries, fichas A a E;
+   - **carga e repetições juntas**: a planilha antiga guardava valores como `42.510kg`, que são 42,5 kg × 10 repetições. A prévia lista todos os casos que serão separados assim;
+   - **para conferir**: 4 valores que não seguem o padrão (`47.51kg`, `9.1kg`, `62.2kg`, `9.7kg`). Eles entram como estão; depois dá para corrigir;
+   - **nomes parecidos**: ficam separados, a não ser que você use Renomear.
+5. Clique em **Importar agora**. A sua conta vira **Premium · sem prazo** (cortesia) e as fichas e o histórico aparecem em **Treino**, **Fichas** e **Evolução**.
+
+Pode importar de novo, até com outros nomes em Renomear: nada é duplicado. Fichas que você já editou no app não são sobrescritas.
+
+## Parte 6 — Teste de passagem da Fase 1
+
+1. **Celular, com internet:** em **Treino**, comece o próximo treino. Mude a carga de uma série, marque as séries e veja o descanso contar. Aceite "Usar essa carga no próximo treino?". Termine com **Tá pago!**.
+2. **Celular, sem internet** (modo avião): comece outro treino, marque séries, feche e abra o app no meio (nada se perde) e termine. Aparece **"1 a enviar"** no topo. Desligue o modo avião: o aviso some em alguns segundos. Na planilha, as abas `sessoes` e `series` recebem as linhas novas.
+3. **Fichas:** crie uma ficha, busque um exercício, crie um exercício novo com link do YouTube e salve. No treino, o botão **Vídeo** abre o vídeo.
+4. **Evolução:** escolha um exercício e veja o gráfico, os recordes e o histórico.
+5. **Ver como aluno grátis:** em Fichas aparece o limite de 3 fichas; em Evolução, o gráfico mostra só o último mês.
 
 ## Problemas comuns
 
