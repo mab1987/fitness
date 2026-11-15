@@ -10,14 +10,20 @@
  */
 var APP = {
   NOME: 'Meu treino',
-  VERSAO: '0.1.0',
+  VERSAO: '0.2.0',
   SESSAO_DIAS: 30,
   RECUPERACAO_MINUTOS: 60,
   MAX_TENTATIVAS_LOGIN: 5,
   JANELA_TENTATIVAS_SEG: 15 * 60,
   TEMAS: ['claro', 'escuro', 'sistema'],
   PALETAS: ['verde-agua', 'azul', 'violeta', 'coral', 'rosa', 'verde', 'vermelho', 'grafite'],
-  PAPEIS_VER_COMO: ['aluno_gratis', 'aluno_premium', 'personal', 'gerente']
+  PAPEIS_VER_COMO: ['aluno_gratis', 'aluno_premium', 'personal', 'gerente'],
+  LIMITE_FICHAS_GRATIS: 3,
+  DIAS_GRAFICO_GRATIS: 30,
+  METODOS: ['', 'drop-set', 'rest-pause', 'bi-set', 'tri-set', 'piramide', 'cluster', 'outro'],
+  TIPOS_SERIE: ['normal', 'aquecimento', 'drop', 'falha'],
+  MAX_LOTE_SESSOES: 200,
+  MAX_LOTE_SERIES: 3000
 };
 
 function prop_(nome, obrigatoria) {
