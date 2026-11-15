@@ -120,7 +120,7 @@ with sync_playwright() as pw:
     p.locator('input[id^="nome-"]').fill('Treino F')
     p.locator('input[id^="busca-"]').fill( 'Afundo búlgaro')
     p.get_by_role('button', name=re.compile('Criar "Afundo búlgaro"')).click()
-    p.locator('input[id^="ne-g-"]').fill('Pernas'); p.locator('input[id^="ne-v-"]').fill('https://youtu.be/dQw4w9WgXcQ')
+    p.locator('select[id^="ne-g-"]').select_option('Quadríceps'); p.locator('input[id^="ne-v-"]').fill('https://youtu.be/dQw4w9WgXcQ')
     p.get_by_role('button', name='Criar e adicionar').click()
     p.get_by_role('button', name='Salvar ficha').click()
     expect(p.get_by_text('Ficha salva.')).to_be_visible()

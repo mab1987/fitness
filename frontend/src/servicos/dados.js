@@ -119,4 +119,7 @@ export const api = {
   salvarMedida: (d) => chamar('medidas.salvar', d),
   excluirMedida: (d) => chamar('medidas.excluir', d),
   exportar: (d = {}) => chamar('exportar', d),
+  previaCatalogo: (d = {}) => chamar('admin.catalogo.previa', d),
+  semearCatalogo: (d = {}) => chamar('admin.catalogo.semear', d),
+  juntarExercicios: (d) => chamar('admin.exercicios.juntar', d),
 };

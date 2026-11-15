@@ -10,7 +10,7 @@
  */
 var APP = {
   NOME: 'Meu treino',
-  VERSAO: '0.4.0',
+  VERSAO: '0.4.1',
   SESSAO_DIAS: 30,
   RECUPERACAO_MINUTOS: 60,
   MAX_TENTATIVAS_LOGIN: 5,

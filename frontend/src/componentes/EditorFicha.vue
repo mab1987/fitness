@@ -3,6 +3,7 @@
 import { ref, reactive, computed, watch } from 'vue';
 import { novoId, kg, lerNumero, idYoutube } from '../servicos/calculos.js';
 import Aviso from './Aviso.vue';
+import { GRUPOS_MUSCULARES } from '../servicos/grupos.js';
 
 const props = defineProps({
   ficha: { type: Object, required: true }, // { id, nome, ordem, ativa, itens, prescrita?, autor_nome? }
@@ -24,6 +25,7 @@ const METODOS = [
 const dados = reactive({ id: '', nome: '', ordem: 0, ativa: true });
 const itens = ref([]);
 const busca = ref('');
+const grupoVer = ref('');
 const novoEx = reactive({ aberto: false, nome: '', grupo_muscular: '', video_url: '' });
 const msg = reactive({ erro: '', ok: '' });
 const salvando = ref(false);
@@ -40,9 +42,13 @@ const nomeEx = (id) => porId.value.get(id)?.nome || 'Exercício';
 function normal(t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); }
 const resultados = computed(() => {
   const q = normal(busca.value);
-  if (!q) return [];
-  return props.exercicios.filter((e) => normal(e.nome).includes(q) || normal(e.grupo_muscular).includes(q)).slice(0, 8);
+  let l = props.exercicios;
+  if (grupoVer.value) l = l.filter((e) => e.grupo_muscular === grupoVer.value);
+  if (!q) return grupoVer.value ? l.slice(0, 60) : [];
+  const palavras = q.split(/\s+/);
+  return l.filter((e) => { const t = normal([e.nome, e.grupo_muscular, e.equipamento, e.secundarios].join(' ')); return palavras.every((w) => t.includes(w)); }).slice(0, 12);
 });
+const gruposComExercicios = computed(() => GRUPOS_MUSCULARES.filter((g) => props.exercicios.some((e) => e.grupo_muscular === g)));
 const existeIgual = computed(() => props.exercicios.some((e) => normal(e.nome) === normal(busca.value)));
 
 function adicionar(ex) {
@@ -141,21 +147,27 @@ async function apagar() {
       </article>
 
       <div v-if="podeEditar" class="cartao pilha">
-        <div class="campo">
-          <label :for="'busca-' + dados.id">Adicionar exercício</label>
-          <input :id="'busca-' + dados.id" v-model="busca" type="search" autocomplete="off" placeholder="Busque por nome ou grupo muscular" />
+        <div class="linha busca-linha">
+          <div class="campo cresce">
+            <label :for="'busca-' + dados.id">Adicionar exercício</label>
+            <input :id="'busca-' + dados.id" v-model="busca" type="search" autocomplete="off" placeholder="Busque por nome, músculo ou equipamento" />
+          </div>
+          <div class="campo">
+            <label :for="'grupo-' + dados.id">Ou veja por grupo</label>
+            <select :id="'grupo-' + dados.id" v-model="grupoVer"><option value="">Todos</option><option v-for="g in gruposComExercicios" :key="g" :value="g">{{ g }}</option></select>
+          </div>
         </div>
         <ul v-if="resultados.length" class="resultados" role="list">
           <li v-for="e in resultados" :key="e.id">
             <button class="botao secundario largo resultado" type="button" @click="adicionar(e)">
-              <span>{{ e.nome }}</span><span class="mudo">{{ e.grupo_muscular }}<template v-if="!e.global"> · próprio</template></span>
+              <span>{{ e.nome }}</span><span class="mudo">{{ e.grupo_muscular }}<template v-if="e.equipamento"> · {{ e.equipamento }}</template><template v-if="!e.global"> · próprio</template></span>
             </button>
           </li>
         </ul>
         <button v-if="busca.trim().length >= 2 && !existeIgual && !novoEx.aberto" class="botao texto" type="button" @click="abrirNovo">+ Criar "{{ busca.trim() }}"</button>
         <div v-if="novoEx.aberto" class="pilha novo">
           <div class="campo"><label :for="'ne-n-' + dados.id">Nome</label><input :id="'ne-n-' + dados.id" v-model="novoEx.nome" maxlength="80" /></div>
-          <div class="campo"><label :for="'ne-g-' + dados.id">Grupo muscular</label><input :id="'ne-g-' + dados.id" v-model="novoEx.grupo_muscular" maxlength="40" placeholder="Peito, Costas…" /></div>
+          <div class="campo"><label :for="'ne-g-' + dados.id">Grupo muscular</label><select :id="'ne-g-' + dados.id" v-model="novoEx.grupo_muscular"><option value="">—</option><option v-for="g in GRUPOS_MUSCULARES" :key="g" :value="g">{{ g }}</option></select></div>
           <div class="campo"><label :for="'ne-v-' + dados.id">Vídeo do YouTube (opcional)</label><input :id="'ne-v-' + dados.id" v-model="novoEx.video_url" type="url" maxlength="300" placeholder="https://youtu.be/…" /><span class="dica">Vídeo próprio: envie ao YouTube como "não listado" e cole o link.</span></div>
           <div class="linha"><button class="botao pequeno" type="button" @click="criarEAdicionar">Criar e adicionar</button><button class="botao secundario pequeno" type="button" @click="novoEx.aberto = false">Cancelar</button></div>
         </div>
@@ -184,6 +196,9 @@ async function apagar() {
 fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .resultados { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .resultado { display: flex; justify-content: space-between; gap: 8px; text-align: left; height: auto; min-height: 48px; padding: 8px 14px; }
+.busca-linha { align-items: flex-end; flex-wrap: wrap; }
+.busca-linha .campo:last-child { min-width: 160px; }
+.resultados { max-height: 360px; overflow-y: auto; }
 .novo { padding-top: 4px; border-top: 1px solid var(--line); }
 .acoes { flex-wrap: wrap; }
 .selo.neutro { background: var(--track); color: var(--text); align-self: flex-start; }

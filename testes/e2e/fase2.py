@@ -82,7 +82,7 @@ with sync_playwright() as pw:
     P.locator('input[id^="nome-"]').fill('Treino A')
     P.locator('input[id^="busca-"]').fill('Agachamento livre')
     P.get_by_role('button', name=re.compile('Criar "Agachamento livre"')).click()
-    P.locator('input[id^="ne-g-"]').fill('Pernas')
+    P.locator('select[id^="ne-g-"]').select_option('Quadríceps')
     P.get_by_role('button', name='Criar e adicionar').click()
     P.locator('input[id^="cp"]').first.fill('40'); P.locator('input[id^="cp"]').first.press('Tab')
     P.locator('input[id^="r"]').first.fill('10')

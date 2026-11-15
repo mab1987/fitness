@@ -1,5 +1,7 @@
 # Meu treino — como colocar no ar
 
+> **Já está na Fase 3?** Veja a [Parte 11 — Catálogo base de exercícios](#parte-11--catálogo-base-de-exercícios).
+>
 > **Já está na Fase 2?** Vá direto para a [Parte 9 — Atualizar para a Fase 3](#parte-9--atualizar-para-a-fase-3).
 >
 > **Já está na Fase 1?** Vá para a [Parte 7 — Atualizar para a Fase 2](#parte-7--atualizar-para-a-fase-2).
@@ -135,6 +137,19 @@ Use duas contas além da sua (por exemplo, um amigo personal e um aluno, ou cont
 5. **Sugestão de carga:** faça um exercício duas vezes, batendo as repetições na segunda. Na terceira vez aparece "Sugestão: … kg" com o motivo. No premium, anote o esforço (6 a 10) ao terminar o exercício.
 6. **Medidas e exportação:** em **Evolução**, registre medidas (grátis: só peso) e, no premium, baixe as planilhas de séries, treinos e medidas.
 7. **Vencimento:** dê uma cortesia de 1 dia a uma conta de teste com 5 fichas ativas. No dia seguinte ela volta ao grátis e 2 fichas aparecem **bloqueadas** (dá para ver e arquivar, não para treinar).
+
+## Parte 11 — Catálogo base de exercícios
+
+1. **Servidor.** Troque o `Código.gs` pelo novo `backend/dist/Codigo.gs`, rode **setup** (acrescenta as colunas `secundarios` e `mecanica` em `exercicios`) e publique uma **nova versão**. A URL `/exec` deve mostrar `"versao":"0.4.1"`.
+2. **Site.** Junte o pull request do catálogo.
+3. No app: **Painel › Catálogo de exercícios › Catálogo base › Ver o que vai mudar**. A prévia mostra:
+   - quantos exercícios serão criados (cerca de 290);
+   - os nomes do app antigo que passam para o nome padrão (ex.: "Tríceps Corda" → "Tríceps na polia com corda"), sem perder o histórico;
+   - 4 nomes para **confirmar**, porque a planilha antiga não dizia o equipamento (ex.: "Supino Inclinado" → "Supino inclinado com halteres"). Marque só os que estiverem certos.
+4. **Aplicar.** Pode rodar de novo quando o catálogo crescer: nada é duplicado.
+5. "Puxada Pronada + Supinada" (um registro de bi-set) fica como está. Para juntar com outro exercício: **Editar › Juntar com…**.
+
+Também dá para rodar pelo editor do Apps Script: `previaCatalogo()` e `carregarCatalogo()`.
 
 ## Problemas comuns
 

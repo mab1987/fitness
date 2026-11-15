@@ -63,7 +63,7 @@ with sync_playwright() as pw:
     A.get_by_role('link', name='← Painel').click()
     A.get_by_role('link', name=re.compile('Catálogo')).click()
     A.get_by_role('button', name='Novo exercício').click()
-    A.fill('#nv-n', 'Leg Press'); A.fill('#nv-g', 'Pernas')
+    A.fill('#nv-n', 'Leg Press'); A.select_option('#nv-g', 'Quadríceps')
     A.get_by_role('button', name='Criar', exact=True).click()
     expect(A.get_by_text('"Leg Press" criado.')).to_be_visible()
 

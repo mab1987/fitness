@@ -137,6 +137,8 @@ function criarExercicio_(d, ctx) {
     grupo_muscular: texto_(d.grupo_muscular, 'grupo muscular', 0, 40, false),
     equipamento: texto_(d.equipamento, 'equipamento', 0, 40, false),
     video_url: videoYoutube_(d.video_url),
+    secundarios: texto_(d.secundarios, 'músculos secundários', 0, 120, false),
+    mecanica: opcao_(d.mecanica || '', 'tipo de movimento', ['', 'composto', 'isolado', 'cardio']),
     criado_por: u.id,
     global: !!u.admin && d.global !== false
   };
@@ -164,6 +166,8 @@ function atualizarExercicio_(d, ctx) {
     if (d.grupo_muscular !== undefined) campos.grupo_muscular = texto_(d.grupo_muscular, 'grupo muscular', 0, 40, false);
     if (d.equipamento !== undefined) campos.equipamento = texto_(d.equipamento, 'equipamento', 0, 40, false);
     if (d.video_url !== undefined) campos.video_url = videoYoutube_(d.video_url);
+    if (d.secundarios !== undefined) campos.secundarios = texto_(d.secundarios, 'músculos secundários', 0, 120, false);
+    if (d.mecanica !== undefined) campos.mecanica = opcao_(d.mecanica || '', 'tipo de movimento', ['', 'composto', 'isolado', 'cardio']);
     return publico_(atualizarSemBloqueio_('exercicios', id, campos), []);
   });
 }

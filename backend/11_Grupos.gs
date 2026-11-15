@@ -222,6 +222,8 @@ function atualizarExercicioAdmin_(d, ctx) {
   if (d.equipamento !== undefined) campos.equipamento = texto_(d.equipamento, 'equipamento', 0, 40, false);
   if (d.video_url !== undefined) campos.video_url = videoYoutube_(d.video_url);
   if (d.global !== undefined) campos.global = d.global === true;
+  if (d.secundarios !== undefined) campos.secundarios = texto_(d.secundarios, 'músculos secundários', 0, 120, false);
+  if (d.mecanica !== undefined) campos.mecanica = opcao_(d.mecanica || '', 'tipo de movimento', ['', 'composto', 'isolado', 'cardio']);
   var r = atualizar_('exercicios', ex.id, campos);
   registrarAuditoria_(ctx.usuario.id, 'catalogo.editar', ex.id, JSON.stringify(campos).slice(0, 500));
   return publico_(r, []);

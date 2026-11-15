@@ -91,7 +91,12 @@ function rotas_() {
   'medidas.listar':        { acesso: 'logado', fn: listarMedidas_ },
   'medidas.salvar':        { acesso: 'logado', escrita: true, fn: salvarMedida_ },
   'medidas.excluir':       { acesso: 'logado', escrita: true, fn: excluirMedida_ },
-  'exportar':              { acesso: 'logado', fn: exportarDados_ }
+  'exportar':              { acesso: 'logado', fn: exportarDados_ },
+  // catálogo base
+  'admin.catalogo.previa': { acesso: 'admin', fn: function (d, ctx) { return semearCatalogo_(d, true, ctx); } },
+  'admin.catalogo.semear': { acesso: 'admin', escrita: true, fn: function (d, ctx) { return semearCatalogo_(d, false, ctx); } },
+  'admin.exercicios.juntar': { acesso: 'admin', escrita: true, fn: mesclarExercicios_ },
+  'exercicios.grupos':     { acesso: 'logado', fn: function () { return GRUPOS_MUSCULARES; } }
   };
 }
 
