@@ -32,7 +32,7 @@ jobs:
       - run: npm test
       - name: Testes do backend (simulador)
         working-directory: .
-        run: node testes/backend.test.js
+        run: node testes/backend.test.js && node testes/treinos.test.js
       - name: Build
         run: npm run build
         env:
