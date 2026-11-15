@@ -15,7 +15,7 @@ var ESQUEMA = {
   grupos: { id: 't', nome: 't', descricao: 't' },
   membros_grupo: { id: 't', grupo_id: 't', usuario_id: 't', papel: 't' },
   vinculos_personal: { id: 't', personal_id: 't', aluno_id: 't', status: 't', inicio: 'd' },
-  exercicios: { id: 't', nome: 't', grupo_muscular: 't', equipamento: 't', video_url: 't', criado_por: 't' },
+  exercicios: { id: 't', nome: 't', grupo_muscular: 't', equipamento: 't', video_url: 't', criado_por: 't', global: 'b' },
   fichas: { id: 't', aluno_id: 't', autor_id: 't', nome: 't', ordem: 'n', ativa: 'b' },
   ficha_itens: {
     id: 't', ficha_id: 't', exercicio_id: 't', ordem: 'n', series: 'n', reps_prescritas: 't',
