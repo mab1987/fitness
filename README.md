@@ -30,6 +30,8 @@ backend/            Servidor no Google Apps Script (a planilha é o banco de dad
   11_Grupos.gs      Grupos com gerente e administração (usuários, papéis, catálogo)
   12_Premium.gs     Preços, Pix copia e cola (BR Code), pedidos, licenças, cortesias e lotes
   13_Programas.gs   Programas prontos, medidas corporais e exportação
+  14_Catalogo.gs    Catálogo base (~310 exercícios), gerado por ferramentas/catalogo.py
+  15_Semear.gs      Carga do catálogo base com prévia e junção de exercícios repetidos
   dist/Codigo.gs    Todos os arquivos acima em um só, para colar no editor
 frontend/           App em Vue 3 + Vite + vite-plugin-pwa
   src/servicos/dados.js     Única porta entre as telas e o servidor
@@ -49,6 +51,10 @@ node testes/backend.test.js
 node testes/treinos.test.js
 node testes/pessoas.test.js
 node testes/premium.test.js
+node testes/catalogo.test.js
+
+# catálogo base: edite ferramentas/catalogo.py e gere de novo
+python3 ferramentas/catalogo.py
 
 # teste de ponta a ponta (Playwright): build com VITE_API_URL=/api em frontend/dist-teste,
 # depois: node testes/servidor-teste.js  e  python3 testes/e2e/fase1.py  (e fase2.py, fase3.py)

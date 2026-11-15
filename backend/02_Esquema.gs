@@ -19,7 +19,10 @@ var ESQUEMA = {
     id: 't', codigo_hash: 't', final_codigo: 't', tipo: 't', criado_por: 't', grupo_id: 't', papel: 't',
     expira_em: 'd', usos_max: 'n', usos: 'n', revogado_em: 'd'
   },
-  exercicios: { id: 't', nome: 't', grupo_muscular: 't', equipamento: 't', video_url: 't', criado_por: 't', global: 'b', status: 't' },
+  exercicios: {
+    id: 't', nome: 't', grupo_muscular: 't', equipamento: 't', video_url: 't', criado_por: 't', global: 'b', status: 't',
+    secundarios: 't', mecanica: 't'
+  },
   fichas: { id: 't', aluno_id: 't', autor_id: 't', nome: 't', ordem: 'n', ativa: 'b' },
   ficha_itens: {
     id: 't', ficha_id: 't', exercicio_id: 't', ordem: 'n', series: 'n', reps_prescritas: 't',

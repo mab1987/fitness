@@ -6,6 +6,7 @@ import { sessao, ehAdmin, papeisEfetivos } from '../servicos/sessao.js';
 import { treinos, carregarTreinos, exercicioPorId } from '../servicos/treinos.js';
 import { novoId } from '../servicos/calculos.js';
 import Aviso from '../componentes/Aviso.vue';
+import { GRUPOS_MUSCULARES } from '../servicos/grupos.js';
 
 const programas = ref([]);
 const grupos = ref([]);
@@ -45,10 +46,12 @@ function editar(p) {
   msg.erro = ''; msg.ok = '';
 }
 function normal(t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); }
+const grupoDe = reactive({});
 function resultados(f) {
   const q = normal(busca[f.id]);
-  if (!q) return [];
-  return treinos.exercicios.filter((e) => (ed.value.publico === 'privado' || e.global) && (normal(e.nome).includes(q) || normal(e.grupo_muscular).includes(q))).slice(0, 6);
+  const g = grupoDe[f.id];
+  if (!q && !g) return [];
+  return treinos.exercicios.filter((e) => (ed.value.publico === 'privado' || e.global) && (!g || e.grupo_muscular === g) && (!q || q.split(/\s+/).every((w) => normal([e.nome, e.grupo_muscular, e.equipamento].join(' ')).includes(w)))).slice(0, q ? 12 : 40);
 }
 function adicionar(f, e) {
   f.itens.push({ id: novoId(), exercicio_id: e.id, series: 3, reps_prescritas: '12', descanso_seg: 60, metodo: '', observacoes: '' });
@@ -135,7 +138,10 @@ async function excluir(p) {
           <button class="botao secundario icone" type="button" :disabled="k === 0" :aria-label="'Subir ' + nomeEx(i.exercicio_id)" @click="f.itens.splice(k - 1, 2, f.itens[k], f.itens[k - 1])">↑</button>
           <button class="botao perigo icone" type="button" :aria-label="'Remover ' + nomeEx(i.exercicio_id)" @click="f.itens.splice(k, 1)">✕</button>
         </div>
-        <div class="campo"><label :for="'b-' + f.id">Adicionar exercício</label><input :id="'b-' + f.id" v-model="busca[f.id]" type="search" autocomplete="off" placeholder="Buscar no catálogo" /></div>
+        <div class="linha" style="align-items: flex-end; flex-wrap: wrap">
+          <div class="campo cresce"><label :for="'b-' + f.id">Adicionar exercício</label><input :id="'b-' + f.id" v-model="busca[f.id]" type="search" autocomplete="off" placeholder="Buscar no catálogo" /></div>
+          <div class="campo"><label :for="'g-' + f.id">Ou por grupo</label><select :id="'g-' + f.id" v-model="grupoDe[f.id]"><option value="">—</option><option v-for="g in GRUPOS_MUSCULARES" :key="g" :value="g">{{ g }}</option></select></div>
+        </div>
         <div v-if="resultados(f).length" class="resultados">
           <button v-for="e in resultados(f)" :key="e.id" class="botao secundario pequeno" type="button" @click="adicionar(f, e)">{{ e.nome }}</button>
         </div>

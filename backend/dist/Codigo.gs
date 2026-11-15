@@ -1397,7 +1397,7 @@
  */
 var APP = {
   NOME: 'Meu treino',
-  VERSAO: '0.4.0',
+  VERSAO: '0.4.1',
   SESSAO_DIAS: 30,
   RECUPERACAO_MINUTOS: 60,
   MAX_TENTATIVAS_LOGIN: 5,
@@ -1477,7 +1477,10 @@ var ESQUEMA = {
     id: 't', codigo_hash: 't', final_codigo: 't', tipo: 't', criado_por: 't', grupo_id: 't', papel: 't',
     expira_em: 'd', usos_max: 'n', usos: 'n', revogado_em: 'd'
   },
-  exercicios: { id: 't', nome: 't', grupo_muscular: 't', equipamento: 't', video_url: 't', criado_por: 't', global: 'b', status: 't' },
+  exercicios: {
+    id: 't', nome: 't', grupo_muscular: 't', equipamento: 't', video_url: 't', criado_por: 't', global: 'b', status: 't',
+    secundarios: 't', mecanica: 't'
+  },
   fichas: { id: 't', aluno_id: 't', autor_id: 't', nome: 't', ordem: 'n', ativa: 'b' },
   ficha_itens: {
     id: 't', ficha_id: 't', exercicio_id: 't', ordem: 'n', series: 'n', reps_prescritas: 't',
@@ -2131,7 +2134,12 @@ function rotas_() {
   'medidas.listar':        { acesso: 'logado', fn: listarMedidas_ },
   'medidas.salvar':        { acesso: 'logado', escrita: true, fn: salvarMedida_ },
   'medidas.excluir':       { acesso: 'logado', escrita: true, fn: excluirMedida_ },
-  'exportar':              { acesso: 'logado', fn: exportarDados_ }
+  'exportar':              { acesso: 'logado', fn: exportarDados_ },
+  // catálogo base
+  'admin.catalogo.previa': { acesso: 'admin', fn: function (d, ctx) { return semearCatalogo_(d, true, ctx); } },
+  'admin.catalogo.semear': { acesso: 'admin', escrita: true, fn: function (d, ctx) { return semearCatalogo_(d, false, ctx); } },
+  'admin.exercicios.juntar': { acesso: 'admin', escrita: true, fn: mesclarExercicios_ },
+  'exercicios.grupos':     { acesso: 'logado', fn: function () { return GRUPOS_MUSCULARES; } }
   };
 }
 
@@ -2379,6 +2387,8 @@ function criarExercicio_(d, ctx) {
     grupo_muscular: texto_(d.grupo_muscular, 'grupo muscular', 0, 40, false),
     equipamento: texto_(d.equipamento, 'equipamento', 0, 40, false),
     video_url: videoYoutube_(d.video_url),
+    secundarios: texto_(d.secundarios, 'músculos secundários', 0, 120, false),
+    mecanica: opcao_(d.mecanica || '', 'tipo de movimento', ['', 'composto', 'isolado', 'cardio']),
     criado_por: u.id,
     global: !!u.admin && d.global !== false
   };
@@ -2406,6 +2416,8 @@ function atualizarExercicio_(d, ctx) {
     if (d.grupo_muscular !== undefined) campos.grupo_muscular = texto_(d.grupo_muscular, 'grupo muscular', 0, 40, false);
     if (d.equipamento !== undefined) campos.equipamento = texto_(d.equipamento, 'equipamento', 0, 40, false);
     if (d.video_url !== undefined) campos.video_url = videoYoutube_(d.video_url);
+    if (d.secundarios !== undefined) campos.secundarios = texto_(d.secundarios, 'músculos secundários', 0, 120, false);
+    if (d.mecanica !== undefined) campos.mecanica = opcao_(d.mecanica || '', 'tipo de movimento', ['', 'composto', 'isolado', 'cardio']);
     return publico_(atualizarSemBloqueio_('exercicios', id, campos), []);
   });
 }
@@ -3561,6 +3573,8 @@ function atualizarExercicioAdmin_(d, ctx) {
   if (d.equipamento !== undefined) campos.equipamento = texto_(d.equipamento, 'equipamento', 0, 40, false);
   if (d.video_url !== undefined) campos.video_url = videoYoutube_(d.video_url);
   if (d.global !== undefined) campos.global = d.global === true;
+  if (d.secundarios !== undefined) campos.secundarios = texto_(d.secundarios, 'músculos secundários', 0, 120, false);
+  if (d.mecanica !== undefined) campos.mecanica = opcao_(d.mecanica || '', 'tipo de movimento', ['', 'composto', 'isolado', 'cardio']);
   var r = atualizar_('exercicios', ex.id, campos);
   registrarAuditoria_(ctx.usuario.id, 'catalogo.editar', ex.id, JSON.stringify(campos).slice(0, 500));
   return publico_(r, []);
@@ -4219,4 +4233,545 @@ function exportarDados_(d, ctx) {
     treinos: { colunas: ['inicio', 'fim', 'ficha', 'observacao'], linhas: h.sessoes.map(function (s) { return [s.inicio, s.fim, fichas[s.ficha_id] || '', s.observacao || '']; }) },
     medidas: { colunas: ['data'].concat(CAMPOS_MEDIDA_).concat(['observacao']), linhas: buscar_('medidas', { aluno_id: aluno.id }).map(function (m) { return [m.data].concat(CAMPOS_MEDIDA_.map(function (c) { return m[c]; })).concat([m.observacao || '']); }) }
   };
+}
+
+
+// ===== 14_Catalogo.gs =====
+/**
+ * Catálogo base de exercícios (gerado por ferramentas/catalogo.py; não edite à mão).
+ * Cada item: [nome, grupo principal, músculos secundários, equipamento, mecânica].
+ * Grupo principal = músculo que mais trabalha (agonista), como nos diretórios ExRx e StrengthLog.
+ */
+var GRUPOS_MUSCULARES = ["Peito", "Costas", "Ombros", "Trapézio", "Bíceps", "Tríceps", "Antebraço", "Abdômen", "Lombar", "Quadríceps", "Posterior de coxa", "Glúteos", "Adutores", "Panturrilha", "Corpo inteiro", "Cardio"];
+
+var CATALOGO_BASE_ = [
+  ["Supino reto com barra", "Peito", "Tríceps, Ombros (anterior)", "Barra", "composto"],
+  ["Supino reto com halteres", "Peito", "Tríceps, Ombros (anterior)", "Halteres", "composto"],
+  ["Supino reto na máquina", "Peito", "Tríceps, Ombros (anterior)", "Máquina", "composto"],
+  ["Supino reto no Smith", "Peito", "Tríceps, Ombros (anterior)", "Smith", "composto"],
+  ["Supino inclinado com barra", "Peito", "Ombros (anterior), Tríceps", "Barra", "composto"],
+  ["Supino inclinado com halteres", "Peito", "Ombros (anterior), Tríceps", "Halteres", "composto"],
+  ["Supino inclinado na máquina", "Peito", "Ombros (anterior), Tríceps", "Máquina", "composto"],
+  ["Supino inclinado no Smith", "Peito", "Ombros (anterior), Tríceps", "Smith", "composto"],
+  ["Supino declinado com barra", "Peito", "Tríceps", "Barra", "composto"],
+  ["Supino declinado com halteres", "Peito", "Tríceps", "Halteres", "composto"],
+  ["Supino declinado na máquina", "Peito", "Tríceps", "Máquina", "composto"],
+  ["Supino com pegada fechada", "Tríceps", "Peito, Ombros (anterior)", "Barra", "composto"],
+  ["Supino no chão (floor press)", "Peito", "Tríceps", "Barra", "composto"],
+  ["Supino com halteres pegada neutra", "Peito", "Tríceps", "Halteres", "composto"],
+  ["Supino articulado (hammer)", "Peito", "Tríceps, Ombros (anterior)", "Máquina", "composto"],
+  ["Crucifixo reto com halteres", "Peito", "Ombros (anterior)", "Halteres", "isolado"],
+  ["Crucifixo inclinado com halteres", "Peito", "Ombros (anterior)", "Halteres", "isolado"],
+  ["Crucifixo declinado com halteres", "Peito", "", "Halteres", "isolado"],
+  ["Crucifixo na máquina (voador)", "Peito", "Ombros (anterior)", "Máquina", "isolado"],
+  ["Crucifixo na polia (crossover alto)", "Peito", "Ombros (anterior)", "Polia", "isolado"],
+  ["Crossover baixo (polia de baixo para cima)", "Peito", "Ombros (anterior)", "Polia", "isolado"],
+  ["Crossover na altura do peito", "Peito", "Ombros (anterior)", "Polia", "isolado"],
+  ["Crucifixo inclinado na polia", "Peito", "Ombros (anterior)", "Polia", "isolado"],
+  ["Pullover com halter", "Peito", "Costas (latíssimo), Tríceps", "Halteres", "composto"],
+  ["Flexão de braço", "Peito", "Tríceps, Ombros (anterior), Abdômen", "Peso corporal", "composto"],
+  ["Flexão de braço inclinada (mãos elevadas)", "Peito", "Tríceps, Ombros (anterior)", "Peso corporal", "composto"],
+  ["Flexão de braço declinada (pés elevados)", "Peito", "Ombros (anterior), Tríceps", "Peso corporal", "composto"],
+  ["Flexão de braço com joelhos apoiados", "Peito", "Tríceps", "Peso corporal", "composto"],
+  ["Flexão de braço com palmas", "Peito", "Tríceps, Ombros (anterior)", "Peso corporal", "composto"],
+  ["Mergulho nas paralelas (ênfase peito)", "Peito", "Tríceps, Ombros (anterior)", "Peso corporal", "composto"],
+  ["Supino com elástico", "Peito", "Tríceps", "Elástico", "composto"],
+  ["Supino na polia em pé", "Peito", "Tríceps, Ombros (anterior)", "Polia", "composto"],
+  ["Arremesso de medicine ball (peito)", "Peito", "Tríceps, Ombros", "Medicine ball", "composto"],
+  ["Barra fixa pronada", "Costas", "Bíceps, Antebraço", "Peso corporal", "composto"],
+  ["Barra fixa supinada", "Costas", "Bíceps", "Peso corporal", "composto"],
+  ["Barra fixa pegada neutra", "Costas", "Bíceps, Antebraço", "Peso corporal", "composto"],
+  ["Barra fixa assistida (gravitron)", "Costas", "Bíceps", "Máquina", "composto"],
+  ["Barra fixa com elástico", "Costas", "Bíceps", "Elástico", "composto"],
+  ["Puxada frontal pronada", "Costas", "Bíceps, Ombros (posterior)", "Polia", "composto"],
+  ["Puxada frontal supinada", "Costas", "Bíceps", "Polia", "composto"],
+  ["Puxada frontal pegada neutra (triângulo)", "Costas", "Bíceps", "Polia", "composto"],
+  ["Puxada frontal aberta", "Costas", "Bíceps, Ombros (posterior)", "Polia", "composto"],
+  ["Puxada atrás da nuca", "Costas", "Bíceps, Ombros (posterior)", "Polia", "composto"],
+  ["Puxada unilateral na polia", "Costas", "Bíceps", "Polia", "composto"],
+  ["Puxada na máquina articulada", "Costas", "Bíceps", "Máquina", "composto"],
+  ["Pulldown com braços estendidos", "Costas", "Tríceps (cabeça longa)", "Polia", "isolado"],
+  ["Pulldown com corda", "Costas", "Tríceps (cabeça longa)", "Polia", "isolado"],
+  ["Remada curvada com barra", "Costas", "Bíceps, Ombros (posterior), Lombar", "Barra", "composto"],
+  ["Remada curvada supinada", "Costas", "Bíceps, Lombar", "Barra", "composto"],
+  ["Remada Pendlay", "Costas", "Bíceps, Lombar", "Barra", "composto"],
+  ["Remada unilateral com halter (serrote)", "Costas", "Bíceps, Ombros (posterior)", "Halteres", "composto"],
+  ["Remada com halteres apoiada no banco inclinado", "Costas", "Bíceps, Ombros (posterior)", "Halteres", "composto"],
+  ["Remada cavalinho (barra T)", "Costas", "Bíceps, Lombar", "Barra", "composto"],
+  ["Remada cavalinho na máquina", "Costas", "Bíceps", "Máquina", "composto"],
+  ["Remada sentada na polia (triângulo)", "Costas", "Bíceps, Ombros (posterior)", "Polia", "composto"],
+  ["Remada sentada na polia pegada aberta", "Costas", "Ombros (posterior), Bíceps", "Polia", "composto"],
+  ["Remada sentada na máquina", "Costas", "Bíceps, Ombros (posterior)", "Máquina", "composto"],
+  ["Remada articulada (hammer)", "Costas", "Bíceps", "Máquina", "composto"],
+  ["Remada unilateral na polia", "Costas", "Bíceps", "Polia", "composto"],
+  ["Remada baixa unilateral na máquina", "Costas", "Bíceps", "Máquina", "composto"],
+  ["Remada no Smith", "Costas", "Bíceps, Lombar", "Smith", "composto"],
+  ["Remada invertida (australiana)", "Costas", "Bíceps, Ombros (posterior)", "Peso corporal", "composto"],
+  ["Remada com kettlebell", "Costas", "Bíceps", "Kettlebell", "composto"],
+  ["Remada renegada", "Costas", "Abdômen, Ombros", "Halteres", "composto"],
+  ["Remada com elástico", "Costas", "Bíceps", "Elástico", "composto"],
+  ["Pullover na polia", "Costas", "Peito, Tríceps (cabeça longa)", "Polia", "isolado"],
+  ["Pullover na máquina", "Costas", "Peito", "Máquina", "isolado"],
+  ["Levantamento terra", "Costas", "Glúteos, Posterior de coxa, Lombar, Trapézio, Antebraço", "Barra", "composto"],
+  ["Levantamento terra sumô", "Glúteos", "Adutores, Quadríceps, Costas, Lombar", "Barra", "composto"],
+  ["Levantamento terra com barra hexagonal", "Quadríceps", "Glúteos, Costas, Trapézio", "Barra hexagonal", "composto"],
+  ["Levantamento terra parcial (rack pull)", "Costas", "Trapézio, Glúteos, Lombar", "Barra", "composto"],
+  ["Levantamento terra com halteres", "Costas", "Glúteos, Posterior de coxa", "Halteres", "composto"],
+  ["Levantamento terra no Smith", "Costas", "Glúteos, Posterior de coxa", "Smith", "composto"],
+  ["Desenvolvimento com barra (em pé)", "Ombros", "Tríceps, Trapézio", "Barra", "composto"],
+  ["Desenvolvimento com barra sentado", "Ombros", "Tríceps", "Barra", "composto"],
+  ["Desenvolvimento com halteres", "Ombros", "Tríceps", "Halteres", "composto"],
+  ["Desenvolvimento com halteres em pé", "Ombros", "Tríceps, Abdômen", "Halteres", "composto"],
+  ["Desenvolvimento na máquina", "Ombros", "Tríceps", "Máquina", "composto"],
+  ["Desenvolvimento no Smith", "Ombros", "Tríceps", "Smith", "composto"],
+  ["Desenvolvimento atrás da nuca", "Ombros", "Tríceps, Trapézio", "Barra", "composto"],
+  ["Desenvolvimento Arnold", "Ombros", "Tríceps", "Halteres", "composto"],
+  ["Desenvolvimento com kettlebell", "Ombros", "Tríceps", "Kettlebell", "composto"],
+  ["Desenvolvimento unilateral na landmine", "Ombros", "Peito, Tríceps", "Landmine", "composto"],
+  ["Push press", "Ombros", "Tríceps, Quadríceps", "Barra", "composto"],
+  ["Flexão em pike (pique)", "Ombros", "Tríceps", "Peso corporal", "composto"],
+  ["Elevação lateral com halteres", "Ombros", "Trapézio", "Halteres", "isolado"],
+  ["Elevação lateral sentado", "Ombros", "", "Halteres", "isolado"],
+  ["Elevação lateral na polia", "Ombros", "", "Polia", "isolado"],
+  ["Elevação lateral na máquina", "Ombros", "", "Máquina", "isolado"],
+  ["Elevação lateral inclinada", "Ombros", "", "Halteres", "isolado"],
+  ["Elevação lateral com elástico", "Ombros", "", "Elástico", "isolado"],
+  ["Elevação frontal com halteres", "Ombros", "Peito (superior)", "Halteres", "isolado"],
+  ["Elevação frontal com barra", "Ombros", "Peito (superior)", "Barra", "isolado"],
+  ["Elevação frontal com anilha", "Ombros", "Peito (superior)", "Anilha", "isolado"],
+  ["Elevação frontal na polia", "Ombros", "", "Polia", "isolado"],
+  ["Crucifixo invertido com halteres", "Ombros", "Trapézio, Romboides", "Halteres", "isolado"],
+  ["Crucifixo invertido na máquina", "Ombros", "Trapézio, Romboides", "Máquina", "isolado"],
+  ["Crucifixo invertido na polia", "Ombros", "Trapézio, Romboides", "Polia", "isolado"],
+  ["Face pull", "Ombros", "Trapézio, Manguito rotador", "Polia", "composto"],
+  ["Remada alta com barra", "Ombros", "Trapézio, Bíceps", "Barra", "composto"],
+  ["Remada alta na polia", "Ombros", "Trapézio", "Polia", "composto"],
+  ["Remada alta com halteres", "Ombros", "Trapézio", "Halteres", "composto"],
+  ["Abertura com elástico (band pull-apart)", "Ombros", "Trapézio, Romboides", "Elástico", "isolado"],
+  ["Rotação externa de ombro na polia", "Ombros", "Manguito rotador", "Polia", "isolado"],
+  ["Rotação externa de ombro com halter", "Ombros", "Manguito rotador", "Halteres", "isolado"],
+  ["Rotação interna de ombro na polia", "Ombros", "Manguito rotador", "Polia", "isolado"],
+  ["Rotação externa com elástico", "Ombros", "Manguito rotador", "Elástico", "isolado"],
+  ["Encolhimento com barra", "Trapézio", "Antebraço", "Barra", "isolado"],
+  ["Encolhimento com halteres", "Trapézio", "Antebraço", "Halteres", "isolado"],
+  ["Encolhimento no Smith", "Trapézio", "", "Smith", "isolado"],
+  ["Encolhimento na máquina", "Trapézio", "", "Máquina", "isolado"],
+  ["Encolhimento na polia", "Trapézio", "", "Polia", "isolado"],
+  ["Encolhimento com barra hexagonal", "Trapézio", "Antebraço", "Barra hexagonal", "isolado"],
+  ["Rosca direta com barra", "Bíceps", "Antebraço", "Barra", "isolado"],
+  ["Rosca direta com barra W", "Bíceps", "Antebraço", "Barra W", "isolado"],
+  ["Rosca direta com halteres", "Bíceps", "Antebraço", "Halteres", "isolado"],
+  ["Rosca alternada com halteres", "Bíceps", "Antebraço", "Halteres", "isolado"],
+  ["Rosca martelo", "Bíceps", "Braquiorradial (antebraço)", "Halteres", "isolado"],
+  ["Rosca martelo na polia com corda", "Bíceps", "Braquiorradial (antebraço)", "Polia", "isolado"],
+  ["Rosca martelo cruzada", "Bíceps", "Braquiorradial (antebraço)", "Halteres", "isolado"],
+  ["Rosca Scott com barra W", "Bíceps", "", "Barra W", "isolado"],
+  ["Rosca Scott com halter", "Bíceps", "", "Halteres", "isolado"],
+  ["Rosca Scott na máquina", "Bíceps", "", "Máquina", "isolado"],
+  ["Rosca concentrada", "Bíceps", "", "Halteres", "isolado"],
+  ["Rosca na polia com barra", "Bíceps", "Antebraço", "Polia", "isolado"],
+  ["Rosca na polia unilateral", "Bíceps", "", "Polia", "isolado"],
+  ["Rosca bayesiana na polia", "Bíceps", "", "Polia", "isolado"],
+  ["Rosca na polia alta (duplo bíceps)", "Bíceps", "", "Polia", "isolado"],
+  ["Rosca inclinada com halteres", "Bíceps", "", "Halteres", "isolado"],
+  ["Rosca spider", "Bíceps", "", "Halteres", "isolado"],
+  ["Rosca 21", "Bíceps", "Antebraço", "Barra", "isolado"],
+  ["Rosca na máquina", "Bíceps", "", "Máquina", "isolado"],
+  ["Rosca Zottman", "Bíceps", "Antebraço", "Halteres", "isolado"],
+  ["Rosca arrastada (drag curl)", "Bíceps", "", "Barra", "isolado"],
+  ["Rosca com elástico", "Bíceps", "", "Elástico", "isolado"],
+  ["Tríceps na polia com barra reta", "Tríceps", "", "Polia", "isolado"],
+  ["Tríceps na polia com barra V", "Tríceps", "", "Polia", "isolado"],
+  ["Tríceps na polia com corda", "Tríceps", "", "Polia", "isolado"],
+  ["Tríceps na polia pegada invertida", "Tríceps", "", "Polia", "isolado"],
+  ["Tríceps unilateral na polia", "Tríceps", "", "Polia", "isolado"],
+  ["Tríceps francês com halter", "Tríceps", "", "Halteres", "isolado"],
+  ["Tríceps francês com barra W", "Tríceps", "", "Barra W", "isolado"],
+  ["Tríceps francês na polia com corda", "Tríceps", "", "Polia", "isolado"],
+  ["Tríceps testa com barra W", "Tríceps", "", "Barra W", "isolado"],
+  ["Tríceps testa com halteres", "Tríceps", "", "Halteres", "isolado"],
+  ["Tríceps testa na polia", "Tríceps", "", "Polia", "isolado"],
+  ["Tríceps coice com halter", "Tríceps", "", "Halteres", "isolado"],
+  ["Tríceps coice na polia", "Tríceps", "", "Polia", "isolado"],
+  ["Tríceps mergulho no banco", "Tríceps", "Peito, Ombros (anterior)", "Peso corporal", "composto"],
+  ["Tríceps mergulho nas paralelas", "Tríceps", "Peito, Ombros (anterior)", "Peso corporal", "composto"],
+  ["Tríceps mergulho na máquina", "Tríceps", "Peito", "Máquina", "composto"],
+  ["Tríceps na máquina", "Tríceps", "", "Máquina", "isolado"],
+  ["Flexão de braço fechada (diamante)", "Tríceps", "Peito, Ombros (anterior)", "Peso corporal", "composto"],
+  ["Tríceps com elástico", "Tríceps", "", "Elástico", "isolado"],
+  ["Rosca inversa com barra", "Antebraço", "Bíceps", "Barra", "isolado"],
+  ["Rosca inversa com barra W", "Antebraço", "Bíceps", "Barra W", "isolado"],
+  ["Rosca inversa na polia", "Antebraço", "Bíceps", "Polia", "isolado"],
+  ["Rosca de punho com barra", "Antebraço", "", "Barra", "isolado"],
+  ["Rosca de punho com halter", "Antebraço", "", "Halteres", "isolado"],
+  ["Extensão de punho com barra", "Antebraço", "", "Barra", "isolado"],
+  ["Extensão de punho com halter", "Antebraço", "", "Halteres", "isolado"],
+  ["Rolo de punho", "Antebraço", "", "Acessório", "isolado"],
+  ["Caminhada do fazendeiro", "Antebraço", "Trapézio, Abdômen, Pernas", "Halteres", "composto"],
+  ["Suspensão na barra", "Antebraço", "Costas", "Peso corporal", "isolado"],
+  ["Pinça de anilhas", "Antebraço", "", "Anilha", "isolado"],
+  ["Hand grip", "Antebraço", "", "Acessório", "isolado"],
+  ["Abdominal supra (crunch)", "Abdômen", "", "Peso corporal", "isolado"],
+  ["Abdominal completo (sit-up)", "Abdômen", "Flexores do quadril", "Peso corporal", "isolado"],
+  ["Abdominal infra no solo", "Abdômen", "Flexores do quadril", "Peso corporal", "isolado"],
+  ["Elevação de pernas na paralela (abdominal infra)", "Abdômen", "Flexores do quadril", "Paralela", "isolado"],
+  ["Elevação de joelhos na paralela", "Abdômen", "Flexores do quadril", "Paralela", "isolado"],
+  ["Elevação de pernas na barra fixa", "Abdômen", "Flexores do quadril, Antebraço", "Peso corporal", "isolado"],
+  ["Elevação de joelhos na barra fixa", "Abdômen", "Flexores do quadril", "Peso corporal", "isolado"],
+  ["Abdominal na máquina", "Abdômen", "", "Máquina", "isolado"],
+  ["Abdominal na polia ajoelhado", "Abdômen", "", "Polia", "isolado"],
+  ["Abdominal bicicleta", "Abdômen", "Oblíquos", "Peso corporal", "isolado"],
+  ["Abdominal oblíquo", "Abdômen", "Oblíquos", "Peso corporal", "isolado"],
+  ["Abdominal remador", "Abdômen", "Flexores do quadril", "Peso corporal", "isolado"],
+  ["Abdominal canivete (V-up)", "Abdômen", "Flexores do quadril", "Peso corporal", "isolado"],
+  ["Abdominal declinado", "Abdômen", "Flexores do quadril", "Banco", "isolado"],
+  ["Abdominal com bola suíça", "Abdômen", "", "Bola", "isolado"],
+  ["Prancha", "Abdômen", "Ombros, Glúteos", "Peso corporal", "isolado"],
+  ["Prancha lateral", "Abdômen", "Oblíquos, Glúteos", "Peso corporal", "isolado"],
+  ["Prancha com toque no ombro", "Abdômen", "Ombros", "Peso corporal", "isolado"],
+  ["Roda abdominal", "Abdômen", "Costas (latíssimo), Ombros", "Acessório", "isolado"],
+  ["Dead bug", "Abdômen", "", "Peso corporal", "isolado"],
+  ["Hollow hold (canoa)", "Abdômen", "", "Peso corporal", "isolado"],
+  ["Pallof press", "Abdômen", "Oblíquos", "Polia", "isolado"],
+  ["Lenhador na polia (de cima para baixo)", "Abdômen", "Oblíquos, Ombros", "Polia", "composto"],
+  ["Lenhador na polia (de baixo para cima)", "Abdômen", "Oblíquos, Ombros", "Polia", "composto"],
+  ["Rotação russa (russian twist)", "Abdômen", "Oblíquos", "Medicine ball", "isolado"],
+  ["Flexão lateral com halter", "Abdômen", "Oblíquos", "Halteres", "isolado"],
+  ["Escalador (mountain climber)", "Abdômen", "Ombros, Flexores do quadril", "Peso corporal", "composto"],
+  ["Limpador de para-brisa", "Abdômen", "Oblíquos", "Peso corporal", "isolado"],
+  ["Prancha Copenhagen", "Adutores", "Abdômen, Oblíquos", "Banco", "isolado"],
+  ["Hiperextensão lombar (banco romano)", "Lombar", "Glúteos, Posterior de coxa", "Banco", "isolado"],
+  ["Extensão lombar na máquina", "Lombar", "Glúteos", "Máquina", "isolado"],
+  ["Bom dia com barra", "Lombar", "Posterior de coxa, Glúteos", "Barra", "composto"],
+  ["Superman (extensão no solo)", "Lombar", "Glúteos", "Peso corporal", "isolado"],
+  ["Perdigueiro (bird dog)", "Lombar", "Abdômen, Glúteos", "Peso corporal", "isolado"],
+  ["Agachamento livre com barra", "Quadríceps", "Glúteos, Adutores, Lombar", "Barra", "composto"],
+  ["Agachamento frontal", "Quadríceps", "Glúteos, Abdômen", "Barra", "composto"],
+  ["Agachamento no Smith", "Quadríceps", "Glúteos", "Smith", "composto"],
+  ["Agachamento hack na máquina", "Quadríceps", "Glúteos", "Máquina", "composto"],
+  ["Agachamento hack com barra", "Quadríceps", "Glúteos", "Barra", "composto"],
+  ["Agachamento pêndulo", "Quadríceps", "Glúteos", "Máquina", "composto"],
+  ["Agachamento goblet", "Quadríceps", "Glúteos, Abdômen", "Halteres", "composto"],
+  ["Agachamento com halteres", "Quadríceps", "Glúteos", "Halteres", "composto"],
+  ["Agachamento livre (peso corporal)", "Quadríceps", "Glúteos", "Peso corporal", "composto"],
+  ["Agachamento com salto", "Quadríceps", "Glúteos, Panturrilha", "Peso corporal", "composto"],
+  ["Agachamento no banco (box squat)", "Quadríceps", "Glúteos", "Barra", "composto"],
+  ["Agachamento na landmine", "Quadríceps", "Glúteos", "Landmine", "composto"],
+  ["Agachamento com cinto (belt squat)", "Quadríceps", "Glúteos", "Máquina", "composto"],
+  ["Agachamento Zercher", "Quadríceps", "Glúteos, Abdômen, Costas", "Barra", "composto"],
+  ["Agachamento pistol (unilateral)", "Quadríceps", "Glúteos", "Peso corporal", "composto"],
+  ["Agachamento sissy", "Quadríceps", "", "Peso corporal", "isolado"],
+  ["Agachamento na parede (isometria)", "Quadríceps", "Glúteos", "Peso corporal", "isolado"],
+  ["Agachamento búlgaro com halteres", "Quadríceps", "Glúteos, Adutores", "Halteres", "composto"],
+  ["Agachamento búlgaro no Smith", "Quadríceps", "Glúteos", "Smith", "composto"],
+  ["Leg press 45°", "Quadríceps", "Glúteos, Adutores", "Máquina", "composto"],
+  ["Leg press horizontal", "Quadríceps", "Glúteos", "Máquina", "composto"],
+  ["Leg press vertical", "Quadríceps", "Glúteos", "Máquina", "composto"],
+  ["Leg press unilateral", "Quadríceps", "Glúteos", "Máquina", "composto"],
+  ["Cadeira extensora", "Quadríceps", "", "Máquina", "isolado"],
+  ["Cadeira extensora unilateral", "Quadríceps", "", "Máquina", "isolado"],
+  ["Extensão de joelho na polia", "Quadríceps", "", "Polia", "isolado"],
+  ["Afundo com halteres", "Quadríceps", "Glúteos, Adutores", "Halteres", "composto"],
+  ["Afundo com barra", "Quadríceps", "Glúteos", "Barra", "composto"],
+  ["Afundo no Smith", "Quadríceps", "Glúteos", "Smith", "composto"],
+  ["Afundo reverso", "Glúteos", "Quadríceps", "Halteres", "composto"],
+  ["Passada (afundo caminhando)", "Quadríceps", "Glúteos, Adutores", "Halteres", "composto"],
+  ["Passada com barra", "Quadríceps", "Glúteos", "Barra", "composto"],
+  ["Afundo lateral", "Adutores", "Quadríceps, Glúteos", "Peso corporal", "composto"],
+  ["Afundo cruzado (curtsy)", "Glúteos", "Quadríceps, Adutores", "Peso corporal", "composto"],
+  ["Subida no banco (step-up)", "Quadríceps", "Glúteos", "Halteres", "composto"],
+  ["Avanço com salto", "Quadríceps", "Glúteos, Panturrilha", "Peso corporal", "composto"],
+  ["Salto na caixa (box jump)", "Quadríceps", "Glúteos, Panturrilha", "Caixa", "composto"],
+  ["Empurrar trenó", "Quadríceps", "Glúteos, Panturrilha", "Trenó", "composto"],
+  ["Mesa flexora", "Posterior de coxa", "Panturrilha", "Máquina", "isolado"],
+  ["Cadeira flexora", "Posterior de coxa", "", "Máquina", "isolado"],
+  ["Flexora em pé (unilateral)", "Posterior de coxa", "", "Máquina", "isolado"],
+  ["Flexora unilateral deitado", "Posterior de coxa", "", "Máquina", "isolado"],
+  ["Flexão de joelho na polia", "Posterior de coxa", "", "Polia", "isolado"],
+  ["Flexão de joelho com caneleira", "Posterior de coxa", "", "Caneleira", "isolado"],
+  ["Flexão de joelho na bola suíça", "Posterior de coxa", "Glúteos", "Bola", "isolado"],
+  ["Stiff com barra", "Posterior de coxa", "Glúteos, Lombar", "Barra", "composto"],
+  ["Stiff com halteres", "Posterior de coxa", "Glúteos, Lombar", "Halteres", "composto"],
+  ["Stiff no Smith", "Posterior de coxa", "Glúteos", "Smith", "composto"],
+  ["Levantamento terra romeno", "Posterior de coxa", "Glúteos, Lombar", "Barra", "composto"],
+  ["Stiff unilateral", "Posterior de coxa", "Glúteos", "Halteres", "composto"],
+  ["Flexão nórdica", "Posterior de coxa", "", "Peso corporal", "isolado"],
+  ["Glute ham raise", "Posterior de coxa", "Glúteos", "Banco", "isolado"],
+  ["Elevação pélvica com barra (hip thrust)", "Glúteos", "Posterior de coxa", "Barra", "composto"],
+  ["Elevação pélvica na máquina", "Glúteos", "Posterior de coxa", "Máquina", "composto"],
+  ["Elevação pélvica no Smith", "Glúteos", "Posterior de coxa", "Smith", "composto"],
+  ["Elevação pélvica unilateral", "Glúteos", "Posterior de coxa", "Peso corporal", "composto"],
+  ["Ponte de glúteo", "Glúteos", "Posterior de coxa", "Peso corporal", "composto"],
+  ["Ponte de glúteo unilateral", "Glúteos", "Posterior de coxa", "Peso corporal", "composto"],
+  ["Coice na polia (glúteo no cabo)", "Glúteos", "Posterior de coxa", "Polia", "isolado"],
+  ["Glúteo na máquina (coice)", "Glúteos", "Posterior de coxa", "Máquina", "isolado"],
+  ["Glúteo quatro apoios com caneleira", "Glúteos", "Posterior de coxa", "Caneleira", "isolado"],
+  ["Glúteo 4 apoios sem peso (donkey kick)", "Glúteos", "", "Peso corporal", "isolado"],
+  ["Puxada entre as pernas na polia (pull through)", "Glúteos", "Posterior de coxa", "Polia", "composto"],
+  ["Cadeira abdutora", "Glúteos", "Glúteo médio e mínimo", "Máquina", "isolado"],
+  ["Abdução de quadril na polia", "Glúteos", "Glúteo médio", "Polia", "isolado"],
+  ["Abdução de quadril com elástico", "Glúteos", "Glúteo médio", "Elástico", "isolado"],
+  ["Abdução de quadril deitado (lateral)", "Glúteos", "Glúteo médio", "Peso corporal", "isolado"],
+  ["Caminhada lateral com elástico", "Glúteos", "Glúteo médio", "Elástico", "isolado"],
+  ["Concha (clamshell)", "Glúteos", "Glúteo médio, rotadores", "Elástico", "isolado"],
+  ["Hidrante (fire hydrant)", "Glúteos", "Glúteo médio", "Peso corporal", "isolado"],
+  ["Hiperextensão reversa", "Glúteos", "Posterior de coxa, Lombar", "Máquina", "isolado"],
+  ["Agachamento sumô com halter", "Glúteos", "Adutores, Quadríceps", "Halteres", "composto"],
+  ["Agachamento sumô com barra", "Glúteos", "Adutores, Quadríceps", "Barra", "composto"],
+  ["Agachamento cossaco", "Adutores", "Glúteos, Quadríceps", "Peso corporal", "composto"],
+  ["Kettlebell swing", "Glúteos", "Posterior de coxa, Lombar, Ombros", "Kettlebell", "composto"],
+  ["Frog pump", "Glúteos", "", "Peso corporal", "isolado"],
+  ["Cadeira adutora", "Adutores", "", "Máquina", "isolado"],
+  ["Adução de quadril na polia", "Adutores", "", "Polia", "isolado"],
+  ["Adução de quadril com elástico", "Adutores", "", "Elástico", "isolado"],
+  ["Adução deitado (lateral)", "Adutores", "", "Peso corporal", "isolado"],
+  ["Panturrilha em pé na máquina", "Panturrilha", "Gastrocnêmio", "Máquina", "isolado"],
+  ["Panturrilha sentado (máquina)", "Panturrilha", "Sóleo", "Máquina", "isolado"],
+  ["Panturrilha no leg press 45°", "Panturrilha", "Gastrocnêmio", "Máquina", "isolado"],
+  ["Panturrilha no leg press horizontal", "Panturrilha", "Gastrocnêmio", "Máquina", "isolado"],
+  ["Panturrilha no Smith", "Panturrilha", "Gastrocnêmio", "Smith", "isolado"],
+  ["Panturrilha em pé com halter (unilateral)", "Panturrilha", "Gastrocnêmio", "Halteres", "isolado"],
+  ["Panturrilha no degrau (peso corporal)", "Panturrilha", "Gastrocnêmio", "Peso corporal", "isolado"],
+  ["Panturrilha burrinho (donkey)", "Panturrilha", "Gastrocnêmio", "Máquina", "isolado"],
+  ["Panturrilha sentado com barra", "Panturrilha", "Sóleo", "Barra", "isolado"],
+  ["Elevação de ponta de pé (tibial)", "Panturrilha", "Tibial anterior", "Peso corporal", "isolado"],
+  ["Arremesso (clean and jerk)", "Corpo inteiro", "Pernas, Ombros, Costas", "Barra", "composto"],
+  ["Arranco (snatch)", "Corpo inteiro", "Pernas, Ombros, Costas", "Barra", "composto"],
+  ["Power clean", "Corpo inteiro", "Pernas, Trapézio, Costas", "Barra", "composto"],
+  ["Thruster", "Corpo inteiro", "Quadríceps, Ombros, Glúteos", "Barra", "composto"],
+  ["Thruster com halteres", "Corpo inteiro", "Quadríceps, Ombros", "Halteres", "composto"],
+  ["Burpee", "Corpo inteiro", "Peito, Pernas", "Peso corporal", "cardio"],
+  ["Levantamento turco (turkish get-up)", "Corpo inteiro", "Ombros, Abdômen, Glúteos", "Kettlebell", "composto"],
+  ["Arremesso de medicine ball no chão (slam)", "Corpo inteiro", "Abdômen, Ombros, Costas", "Medicine ball", "composto"],
+  ["Corda naval (battle rope)", "Corpo inteiro", "Ombros, Abdômen", "Corda", "cardio"],
+  ["Wall ball", "Corpo inteiro", "Quadríceps, Ombros", "Medicine ball", "composto"],
+  ["Esteira", "Cardio", "", "Aparelho de cardio", "cardio"],
+  ["Esteira inclinada (caminhada)", "Cardio", "Glúteos, Panturrilha", "Aparelho de cardio", "cardio"],
+  ["Bicicleta ergométrica", "Cardio", "Quadríceps", "Aparelho de cardio", "cardio"],
+  ["Bicicleta horizontal", "Cardio", "Quadríceps", "Aparelho de cardio", "cardio"],
+  ["Spinning (bike indoor)", "Cardio", "Quadríceps, Glúteos", "Aparelho de cardio", "cardio"],
+  ["Elíptico (transport)", "Cardio", "Pernas, Braços", "Aparelho de cardio", "cardio"],
+  ["Escada (simulador)", "Cardio", "Glúteos, Quadríceps, Panturrilha", "Aparelho de cardio", "cardio"],
+  ["Remo ergômetro", "Cardio", "Costas, Pernas", "Aparelho de cardio", "cardio"],
+  ["Air bike", "Cardio", "Pernas, Braços", "Aparelho de cardio", "cardio"],
+  ["Pular corda", "Cardio", "Panturrilha", "Corda", "cardio"],
+  ["Polichinelo", "Cardio", "", "Peso corporal", "cardio"],
+  ["Corrida", "Cardio", "Pernas", "Ao ar livre", "cardio"],
+  ["Caminhada", "Cardio", "Pernas", "Ao ar livre", "cardio"]
+];
+
+/** Nomes antigos ou populares → nome do catálogo. "?" no fim: confirmar o equipamento. */
+var APELIDOS_CATALOGO_ = {
+  "Crucifixo Máquina": "Crucifixo na máquina (voador)",
+  "Supino Máquina": "Supino reto na máquina",
+  "Supino Inclinado": "Supino inclinado com halteres?",
+  "Tríceps Mergulho": "Tríceps mergulho na máquina?",
+  "Tríceps Corda": "Tríceps na polia com corda",
+  "Tríceps Pulley Barra V": "Tríceps na polia com barra V",
+  "Escada": "Escada (simulador)",
+  "Cadeira Extensora": "Cadeira extensora",
+  "Cadeira Flexora": "Cadeira flexora",
+  "Cadeira Abdutora": "Cadeira abdutora",
+  "Cadeira Adutora": "Cadeira adutora",
+  "Leg Press 45°": "Leg press 45°",
+  "Agachamento Smith": "Agachamento no Smith",
+  "Panturrilha no Leg Horizontal": "Panturrilha no leg press horizontal",
+  "Esteira": "Esteira",
+  "Elevação Lateral": "Elevação lateral com halteres",
+  "Desenvolvimento c/ Halter": "Desenvolvimento com halteres",
+  "Crucifixo Invertido Máquina": "Crucifixo invertido na máquina",
+  "Encolhimento c/ Halter": "Encolhimento com halteres",
+  "Abdômen Completo": "Abdominal na máquina?",
+  "Abdômen Infra na Paralela": "Elevação de pernas na paralela (abdominal infra)",
+  "Remada Curvada c/ Barra": "Remada curvada com barra",
+  "Remada na Máquina": "Remada sentada na máquina",
+  "Puxada Pronada": "Puxada frontal pronada",
+  "Puxada supinada": "Puxada frontal supinada",
+  "Rosca Direta c/ Halter": "Rosca direta com halteres",
+  "Rosca Scott na Máquina": "Rosca Scott na máquina",
+  "Rosca Inversa": "Rosca inversa com barra?",
+  "Levantamento Terra": "Levantamento terra",
+  "Panturrilha Sentadilha": "Panturrilha sentado (máquina)",
+  "Supino reto": "Supino reto com barra",
+  "Supino": "Supino reto com barra",
+  "Peck deck": "Crucifixo na máquina (voador)",
+  "Voador": "Crucifixo na máquina (voador)",
+  "Crossover": "Crucifixo na polia (crossover alto)",
+  "Pulley frente": "Puxada frontal pronada",
+  "Puxada frente": "Puxada frontal pronada",
+  "Puxada alta": "Puxada frontal pronada",
+  "Remada baixa": "Remada sentada na polia (triângulo)",
+  "Serrote": "Remada unilateral com halter (serrote)",
+  "Agachamento livre": "Agachamento livre com barra",
+  "Agachamento": "Agachamento livre com barra",
+  "Leg press": "Leg press 45°",
+  "Hack": "Agachamento hack na máquina",
+  "Hip thrust": "Elevação pélvica com barra (hip thrust)",
+  "Elevação pélvica": "Elevação pélvica com barra (hip thrust)",
+  "Stiff": "Stiff com barra",
+  "Terra": "Levantamento terra",
+  "Rosca direta": "Rosca direta com barra",
+  "Rosca alternada": "Rosca alternada com halteres",
+  "Tríceps pulley": "Tríceps na polia com barra reta",
+  "Tríceps testa": "Tríceps testa com barra W",
+  "Tríceps francês": "Tríceps francês com halter",
+  "Desenvolvimento": "Desenvolvimento com halteres",
+  "Elevação frontal": "Elevação frontal com halteres",
+  "Encolhimento": "Encolhimento com halteres",
+  "Panturrilha em pé": "Panturrilha em pé na máquina",
+  "Panturrilha sentada": "Panturrilha sentado (máquina)",
+  "Abdominal": "Abdominal supra (crunch)",
+  "Bike": "Bicicleta ergométrica",
+  "Elíptico": "Elíptico (transport)",
+  "Transport": "Elíptico (transport)",
+  "Remo": "Remo ergômetro"
+};
+
+
+// ===== 15_Semear.gs =====
+/**
+ * Carga do catálogo base (14_Catalogo.gs) e junção de exercícios repetidos.
+ *
+ * semear (administrador, com prévia):
+ *   1. Nomes antigos conhecidos (APELIDOS_CATALOGO_) viram o nome padrão. Se o nome padrão já existe
+ *      como outro exercício, os dois são juntados: fichas, séries e programas passam para o padrão.
+ *      Apelidos marcados com "?" só entram se o administrador confirmar (o equipamento é suposição).
+ *   2. Exercícios do catálogo que ainda não existem são criados no catálogo geral.
+ *   3. Os que já existem com o mesmo nome ganham grupo, músculos secundários, equipamento e tipo
+ *      de movimento quando esses campos estão vazios (ou com grupo fora da lista padrão).
+ * Pode rodar de novo: nada é duplicado.
+ */
+
+function idCatalogo_(nome) {
+  return 'cat_' + sha256_('catalogo|' + normalizarNome_(nome)).slice(0, 24);
+}
+
+function planoSemeadura_(confirmados) {
+  confirmados = confirmados || {};
+  var todos = lerTodos_('exercicios');
+  var porNome = {};
+  todos.forEach(function (e) { porNome[normalizarNome_(e.nome)] = porNome[normalizarNome_(e.nome)] || e; });
+  var base = {};
+  CATALOGO_BASE_.forEach(function (c) { base[normalizarNome_(c[0])] = c; });
+
+  var renomear = [];
+  var juntar = [];
+  var duvidas = [];
+  var tocados = {};
+  Object.keys(APELIDOS_CATALOGO_).forEach(function (antigo) {
+    var alvoBruto = APELIDOS_CATALOGO_[antigo];
+    var duvidoso = /\?$/.test(alvoBruto);
+    var alvo = alvoBruto.replace(/\?$/, '');
+    var ex = porNome[normalizarNome_(antigo)];
+    if (!ex || normalizarNome_(antigo) === normalizarNome_(alvo)) return;
+    var item = { antigo: ex.nome, novo: alvo, id: ex.id };
+    if (duvidoso && !confirmados[ex.nome]) { duvidas.push(item); return; }
+    var existente = porNome[normalizarNome_(alvo)];
+    if (existente && existente.id !== ex.id) { item.para_id = existente.id; juntar.push(item); }
+    else renomear.push(item);
+    tocados[normalizarNome_(alvo)] = true;
+  });
+
+  var criar = [];
+  var completar = [];
+  CATALOGO_BASE_.forEach(function (c) {
+    var k = normalizarNome_(c[0]);
+    var ex = porNome[k];
+    if (!ex) {
+      if (!tocados[k]) criar.push(c);
+      return;
+    }
+    var campos = {};
+    if (ex.global && ex.nome !== c[0]) campos.nome = c[0]; // mesma palavra, grafia do catálogo
+    if (!ex.grupo_muscular || GRUPOS_MUSCULARES.indexOf(ex.grupo_muscular) < 0) campos.grupo_muscular = c[1];
+    if (!ex.secundarios && c[2]) campos.secundarios = c[2];
+    if (!ex.equipamento && c[3]) campos.equipamento = c[3];
+    if (!ex.mecanica) campos.mecanica = c[4];
+    if (Object.keys(campos).length) completar.push({ id: ex.id, nome: ex.nome, campos: campos });
+  });
+  return { renomear: renomear, juntar: juntar, duvidas: duvidas, criar: criar, completar: completar, base: base };
+}
+
+/** dados: { confirmar: ["Supino Inclinado", ...] } — apelidos com "?" que o administrador aceitou. */
+function semearCatalogo_(d, soPrevia, ctx) {
+  var confirmados = {};
+  (Array.isArray(d.confirmar) ? d.confirmar : []).slice(0, 100).forEach(function (n) { if (typeof n === 'string') confirmados[n] = true; });
+  var plano = planoSemeadura_(confirmados);
+  var resumo = {
+    catalogo: CATALOGO_BASE_.length,
+    criar: plano.criar.length,
+    completar: plano.completar.length,
+    renomear: plano.renomear.map(function (r) { return { antigo: r.antigo, novo: r.novo }; }),
+    juntar: plano.juntar.map(function (r) { return { antigo: r.antigo, novo: r.novo }; }),
+    duvidas: plano.duvidas.map(function (r) { return { antigo: r.antigo, novo: r.novo }; }),
+    grupos: GRUPOS_MUSCULARES
+  };
+  if (soPrevia) return resumo;
+
+  comBloqueio_(function () {
+    var autor = ctx.usuario.id;
+    // renomear (e completar com os dados do catálogo)
+    upsertLoteSemBloqueio_('exercicios', plano.renomear.map(function (r) {
+      var c = plano.base[normalizarNome_(r.novo)] || [];
+      return { id: r.id, nome: r.novo, grupo_muscular: c[1] || '', secundarios: c[2] || '', equipamento: c[3] || '', mecanica: c[4] || '', global: true };
+    }));
+    // juntar repetidos
+    plano.juntar.forEach(function (r) { mesclarSemBloqueio_(r.id, r.para_id); });
+    // completar campos vazios
+    upsertLoteSemBloqueio_('exercicios', plano.completar.map(function (x) { return Object.assign({ id: x.id }, x.campos); }));
+    // criar os que faltam
+    var existentes = {};
+    lerTodos_('exercicios', true).forEach(function (e) { existentes[e.id] = true; });
+    upsertLoteSemBloqueio_('exercicios', plano.criar
+      .map(function (c) {
+        return { id: idCatalogo_(c[0]), nome: c[0], grupo_muscular: c[1], secundarios: c[2], equipamento: c[3], mecanica: c[4], video_url: '', criado_por: autor, global: true, status: '', excluido_em: null };
+      })
+      .filter(function (x) { return !existentes[x.id]; }));
+    inserirSemBloqueio_('auditoria', { usuario_id: autor, acao: 'catalogo.semear', alvo: '', detalhes: JSON.stringify({ criar: resumo.criar, renomear: resumo.renomear.length, juntar: resumo.juntar.length }) });
+  });
+  resumo.feito = true;
+  return resumo;
+}
+
+/** Junta dois exercícios: tudo o que usa "de" passa a usar "para"; "de" sai do catálogo. */
+function mesclarSemBloqueio_(deId, paraId) {
+  if (deId === paraId) throw erro_('VALIDACAO', 'Escolha dois exercícios diferentes.');
+  var de = buscarUm_('exercicios', { id: deId });
+  var para = buscarUm_('exercicios', { id: paraId });
+  if (!de || !para) throw erro_('NAO_ENCONTRADO', 'Exercício não encontrado.');
+  var r = {};
+  ['ficha_itens', 'series', 'programa_itens'].forEach(function (tabela) {
+    var lista = lerTodos_(tabela, true).filter(function (x) { return x.exercicio_id === deId; });
+    upsertLoteSemBloqueio_(tabela, lista.map(function (x) { return { id: x.id, exercicio_id: paraId }; }));
+    r[tabela] = lista.length;
+  });
+  var campos = { excluido_em: agora_(), status: 'juntado:' + paraId };
+  atualizarSemBloqueio_('exercicios', deId, campos);
+  if (!para.video_url && de.video_url) atualizarSemBloqueio_('exercicios', paraId, { video_url: de.video_url });
+  return r;
+}
+
+function mesclarExercicios_(d, ctx) {
+  var de = id_(d.de, 'exercício');
+  var para = id_(d.para, 'exercício');
+  return comBloqueio_(function () {
+    var r = mesclarSemBloqueio_(de, para);
+    inserirSemBloqueio_('auditoria', { usuario_id: ctx.usuario.id, acao: 'catalogo.juntar', alvo: de, detalhes: para + ' ' + JSON.stringify(r) });
+    return r;
+  });
+}
+
+/** Pelo editor do Apps Script: prévia e carga do catálogo (usa o ADMIN_EMAIL como autor). */
+function previaCatalogo() {
+  var r = semearCatalogo_({}, true, null);
+  console.log(JSON.stringify(r, null, 2));
+  return r;
+}
+
+function carregarCatalogo() {
+  var admin = buscarUm_('usuarios', { email: prop_('ADMIN_EMAIL', true).toLowerCase() });
+  if (!admin) throw new Error('Cadastre a conta do administrador antes.');
+  var r = semearCatalogo_({}, false, { usuario: admin });
+  console.log(JSON.stringify(r, null, 2));
+  return r;
 }
